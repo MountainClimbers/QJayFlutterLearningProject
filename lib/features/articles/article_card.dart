@@ -35,23 +35,25 @@ class ArticleCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    article.author.isEmpty ? '匿名作者' : article.author,
+                    article.displayAuthor.isEmpty
+                        ? '匿名作者'
+                        : article.displayAuthor,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
-                if (article.date.isNotEmpty)
+                if (article.displayDate.isNotEmpty)
                   Text(
-                    article.date,
+                    article.displayDate,
                     style: Theme.of(context).textTheme.labelSmall,
                   ),
               ],
             ),
-            if (article.chapter.isNotEmpty) ...[
+            if (article.displayChapter.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
-                article.chapter,
+                article.displayChapter,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelMedium

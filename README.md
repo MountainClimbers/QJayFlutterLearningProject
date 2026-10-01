@@ -12,15 +12,33 @@
 - 支持失败重试和下拉刷新；
 - 使用单元测试和 Widget 测试保护主要逻辑。
 
+## 项目技术栈
+
+| 职责 | 技术 | 作用 |
+| --- | --- | --- |
+| 数据对象 | `json_serializable` | 自动生成 `fromJson/toJson`，减少手写映射 |
+| 网络请求 | `Dio` | 统一配置域名、超时和网络异常 |
+| 状态管理 | `Riverpod AsyncNotifier` | 管理加载、成功、错误和刷新状态 |
+| 下拉刷新 | `RefreshIndicator` | Flutter 官方 Material 下拉刷新组件 |
+| 页面 UI | `ConsumerWidget` + Material 3 | 监听 Provider 并根据 `AsyncValue` 绘制页面 |
+
 接口地址：`https://www.wanandroid.com/article/list/0/json`
 
 ## 适合初学者的阅读顺序
 
-1. `lib/models/article.dart`：学习如何把 JSON 变成 Dart 对象。
-2. `lib/services/article_service.dart`：学习 HTTP 请求、`async/await` 和异常处理。
-3. `lib/features/articles/article_card.dart`：学习 StatelessWidget 和常用布局。
-4. `lib/features/articles/article_list_page.dart`：学习 StatefulWidget、页面状态、刷新和重试。
-5. `lib/main.dart`：查看应用入口、主题和依赖注入。
+1. `lib/models/article.dart`：学习 JSON 注解和展示属性。
+2. `lib/models/article.g.dart`：查看工具生成的字段映射，不要手动修改。
+3. `lib/services/article_service.dart`：学习 Dio、`async/await` 和异常转换。
+4. `lib/features/articles/article_list_controller.dart`：学习 Riverpod `AsyncNotifier`。
+5. `lib/features/articles/article_card.dart`：学习 StatelessWidget 和常用布局。
+6. `lib/features/articles/article_list_page.dart`：学习 ConsumerWidget、AsyncValue 和下拉刷新。
+7. `lib/main.dart`：查看 `ProviderScope`、应用入口和主题。
+
+修改带有 `@JsonSerializable()` 的模型后，重新生成代码：
+
+```bash
+dart run build_runner build
+```
 
 ## 五天学习安排
 

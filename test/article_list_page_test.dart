@@ -1,23 +1,31 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qjay_flutter_learning/features/articles/article_list_controller.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_page.dart';
 import 'package:qjay_flutter_learning/models/article.dart';
 import 'package:qjay_flutter_learning/services/article_service.dart';
 
 void main() {
-  const article = Article(
+  const firstArticle = Article(
     id: 1,
     title: 'Flutter 面试准备',
     link: 'https://example.com/1',
     author: 'MountainClimbers',
-    chapter: '移动开发 / Flutter',
-    date: '今天',
+    superChapterName: '移动开发',
+    chapterName: 'Flutter',
+    niceDate: '今天',
+  );
+  const refreshedArticle = Article(
+    id: 2,
+    title: 'Riverpod 实战',
+    link: 'https://example.com/2',
+    author: '小明',
   );
 
-  testWidgets('加载成功后显示文章的主要信息', (tester) async {
-    // 如果页面没有真正使用仓库返回的数据，这个测试就会失败。
+  testWidgets('Riverpod 加载成功后显示文章的主要信息', (tester) async {
     final repository = _SequenceRepository([
-      () async => [article],
+      () async => [firstArticle],
     ]);
 
     await tester.pumpWidget(_testApp(repository));
@@ -31,18 +39,16 @@ void main() {
     expect(find.text('今天'), findsOneWidget);
   });
 
-  testWidgets('加载失败后点击重试可以恢复文章列表', (tester) async {
-    // 如果重试按钮没有再次调用仓库，这个测试就会失败。
+  testWidgets('Riverpod 错误状态点击重试后恢复文章列表', (tester) async {
     final repository = _SequenceRepository([
       () => Future.error(const ArticleLoadException('测试网络断开')),
-      () async => [article],
+      () async => [firstArticle],
     ]);
 
     await tester.pumpWidget(_testApp(repository));
     await tester.pumpAndSettle();
 
     expect(find.text('测试网络断开'), findsOneWidget);
-    expect(find.text('重试'), findsOneWidget);
 
     await tester.tap(find.text('重试'));
     await tester.pumpAndSettle();
@@ -50,10 +56,47 @@ void main() {
     expect(find.text('Flutter 面试准备'), findsOneWidget);
     expect(repository.callCount, 2);
   });
+
+  testWidgets('下拉刷新通过 AsyncNotifier 重新获取文章', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+      () async => [refreshedArticle],
+    ]);
+
+    await tester.pumpWidget(_testApp(repository));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Riverpod 实战'), findsOneWidget);
+    expect(find.text('Flutter 面试准备'), findsNothing);
+    expect(repository.callCount, 2);
+  });
+
+  testWidgets('下拉刷新失败时保留原列表并显示轻量提示', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+      () => Future.error(const ArticleLoadException('测试刷新失败')),
+    ]);
+
+    await tester.pumpWidget(_testApp(repository));
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Flutter 面试准备'), findsOneWidget);
+    expect(find.text('刷新失败：测试刷新失败'), findsOneWidget);
+    expect(repository.callCount, 2);
+  });
 }
 
 Widget _testApp(ArticleRepository repository) {
-  return MaterialApp(home: ArticleListPage(repository: repository));
+  return ProviderScope(
+    overrides: [articleRepositoryProvider.overrideWithValue(repository)],
+    child: const MaterialApp(home: ArticleListPage()),
+  );
 }
 
 class _SequenceRepository implements ArticleRepository {

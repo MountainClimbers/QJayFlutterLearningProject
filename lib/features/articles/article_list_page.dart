@@ -1,82 +1,50 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/article.dart';
-import '../../services/article_service.dart';
 import 'article_card.dart';
+import 'article_list_controller.dart';
 
-class ArticleListPage extends StatefulWidget {
-  const ArticleListPage({super.key, required this.repository});
-
-  final ArticleRepository repository;
-
-  @override
-  State<ArticleListPage> createState() => _ArticleListPageState();
-}
-
-class _ArticleListPageState extends State<ArticleListPage> {
-  List<Article> _articles = const [];
-  String? _errorMessage;
-  bool _isLoading = true;
+/// ConsumerWidget 只根据 Riverpod 状态绘制页面，不手动保存异步状态。
+class ArticleListPage extends ConsumerWidget {
+  const ArticleListPage({super.key});
 
   @override
-  void initState() {
-    super.initState();
-    _loadArticles();
-  }
+  Widget build(BuildContext context, WidgetRef ref) {
+    final articles = ref.watch(articleListControllerProvider);
 
-  /// 首次进入、点击重试和下拉刷新都复用同一个加载入口。
-  Future<void> _loadArticles() async {
-    setState(() {
-      _errorMessage = null;
-      if (_articles.isEmpty) _isLoading = true;
-    });
-
-    try {
-      final articles = await widget.repository.fetchArticles();
-      if (!mounted) return;
-      setState(() => _articles = articles);
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _errorMessage = error.toString());
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('文章列表'), centerTitle: false),
-      body: _buildBody(),
+      body: switch (articles) {
+        AsyncData(:final value) => _ArticleList(articles: value),
+        AsyncError(:final error) => _ErrorView(
+          message: error.toString(),
+          onRetry: () => ref.invalidate(articleListControllerProvider),
+        ),
+        _ => const Center(child: CircularProgressIndicator()),
+      },
     );
   }
+}
 
-  Widget _buildBody() {
-    if (_isLoading && _articles.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
+class _ArticleList extends ConsumerWidget {
+  const _ArticleList({required this.articles});
 
-    if (_errorMessage != null && _articles.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.cloud_off_outlined, size: 52),
-              const SizedBox(height: 16),
-              Text(_errorMessage!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(onPressed: _loadArticles, child: const Text('重试')),
-            ],
-          ),
-        ),
-      );
-    }
+  final List<Article> articles;
 
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     return RefreshIndicator(
-      onRefresh: _loadArticles,
-      child: _articles.isEmpty
+      onRefresh: () async {
+        final message = await ref
+            .read(articleListControllerProvider.notifier)
+            .refresh();
+        if (message != null && context.mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('刷新失败：$message')));
+        }
+      },
+      child: articles.isEmpty
           ? ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               children: const [
@@ -90,11 +58,37 @@ class _ArticleListPageState extends State<ArticleListPage> {
               key: const PageStorageKey('article-list'),
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.only(top: 8, bottom: 24),
-              itemCount: _articles.length,
+              itemCount: articles.length,
               itemBuilder: (context, index) {
-                return ArticleCard(article: _articles[index]);
+                return ArticleCard(article: articles[index]);
               },
             ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_outlined, size: 52),
+            const SizedBox(height: 16),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            FilledButton(onPressed: onRetry, child: const Text('重试')),
+          ],
+        ),
+      ),
     );
   }
 }

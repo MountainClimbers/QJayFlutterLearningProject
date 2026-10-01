@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'features/articles/article_list_page.dart';
-import 'services/article_service.dart';
 
 void main() {
-  runApp(const WanAndroidLearningApp());
+  runApp(const ProviderScope(child: WanAndroidLearningApp()));
 }
 
 class WanAndroidLearningApp extends StatelessWidget {
@@ -20,7 +20,7 @@ class WanAndroidLearningApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF7F8FA),
         useMaterial3: true,
       ),
-      home: ArticleListPage(repository: ArticleService()),
+      home: const ArticleListPage(),
     );
   }
 }

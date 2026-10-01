@@ -1,42 +1,64 @@
 import 'package:html_unescape/html_unescape.dart';
+import 'package:json_annotation/json_annotation.dart';
 
-/// 一篇文章的数据。
-///
-/// 数据模型只负责把接口字段整理成页面容易使用的 Dart 对象，
-/// 不负责发送网络请求，也不负责绘制界面。
+part 'article.g.dart';
+
+/// 使用 json_serializable 自动生成重复的 JSON 字段映射代码。
+@JsonSerializable()
 class Article {
   const Article({
     required this.id,
     required this.title,
     required this.link,
-    required this.author,
-    required this.chapter,
-    required this.date,
+    this.author = '',
+    this.shareUser = '',
+    this.superChapterName = '',
+    this.chapterName = '',
+    this.niceDate = '',
+    this.niceShareDate = '',
   });
 
-  factory Article.fromJson(Map<String, dynamic> json) {
-    final author = _plainText(json['author']);
-    final chapters = [
-      _plainText(json['superChapterName']),
-      _plainText(json['chapterName']),
-    ].where((name) => name.isNotEmpty).join(' / ');
+  factory Article.fromJson(Map<String, dynamic> json) =>
+      _$ArticleFromJson(json);
 
-    return Article(
-      id: (json['id'] as num?)?.toInt() ?? 0,
-      title: _plainText(json['title']),
-      link: json['link']?.toString() ?? '',
-      author: author.isNotEmpty ? author : _plainText(json['shareUser']),
-      chapter: chapters,
-      date: _plainText(json['niceDate'] ?? json['niceShareDate']),
-    );
-  }
-
+  @JsonKey(fromJson: _intValue)
   final int id;
+
+  @JsonKey(fromJson: _plainText)
   final String title;
+
+  @JsonKey(fromJson: _stringValue)
   final String link;
+
+  @JsonKey(fromJson: _plainText)
   final String author;
-  final String chapter;
-  final String date;
+
+  @JsonKey(fromJson: _plainText)
+  final String shareUser;
+
+  @JsonKey(fromJson: _plainText)
+  final String superChapterName;
+
+  @JsonKey(fromJson: _plainText)
+  final String chapterName;
+
+  @JsonKey(fromJson: _plainText)
+  final String niceDate;
+
+  @JsonKey(fromJson: _plainText)
+  final String niceShareDate;
+
+  /// 这些 getter 保存页面展示规则，生成代码只处理字段映射。
+  String get displayAuthor => author.isNotEmpty ? author : shareUser;
+
+  String get displayChapter => [
+    superChapterName,
+    chapterName,
+  ].where((name) => name.isNotEmpty).join(' / ');
+
+  String get displayDate => niceDate.isNotEmpty ? niceDate : niceShareDate;
+
+  Map<String, dynamic> toJson() => _$ArticleToJson(this);
 }
 
 final _htmlUnescape = HtmlUnescape();
@@ -44,3 +66,10 @@ final _htmlUnescape = HtmlUnescape();
 String _plainText(Object? value) {
   return _htmlUnescape.convert(value?.toString() ?? '').trim();
 }
+
+int _intValue(Object? value) {
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+String _stringValue(Object? value) => value?.toString().trim() ?? '';
