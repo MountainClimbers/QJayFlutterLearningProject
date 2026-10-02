@@ -3,11 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/article.dart';
 import 'article_card.dart';
+import 'article_detail_page.dart';
 import 'article_list_controller.dart';
+
+typedef ArticleDetailPageBuilder = Widget Function(Article article);
 
 /// ConsumerWidget 只根据 Riverpod 状态绘制页面，不手动保存异步状态。
 class ArticleListPage extends ConsumerWidget {
-  const ArticleListPage({super.key});
+  const ArticleListPage({super.key, this.articleDetailPageBuilder});
+
+  final ArticleDetailPageBuilder? articleDetailPageBuilder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -16,7 +21,12 @@ class ArticleListPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('文章列表'), centerTitle: false),
       body: switch (articles) {
-        AsyncData(:final value) => _ArticleList(articles: value),
+        AsyncData(:final value) => _ArticleList(
+          articles: value,
+          articleDetailPageBuilder:
+              articleDetailPageBuilder ??
+              (article) => ArticleDetailPage(article: article),
+        ),
         AsyncError(:final error) => _ErrorView(
           message: error.toString(),
           onRetry: () => ref.invalidate(articleListControllerProvider),
@@ -28,9 +38,13 @@ class ArticleListPage extends ConsumerWidget {
 }
 
 class _ArticleList extends ConsumerWidget {
-  const _ArticleList({required this.articles});
+  const _ArticleList({
+    required this.articles,
+    required this.articleDetailPageBuilder,
+  });
 
   final List<Article> articles;
+  final ArticleDetailPageBuilder articleDetailPageBuilder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -60,7 +74,17 @@ class _ArticleList extends ConsumerWidget {
               padding: const EdgeInsets.only(top: 8, bottom: 24),
               itemCount: articles.length,
               itemBuilder: (context, index) {
-                return ArticleCard(article: articles[index]);
+                final article = articles[index];
+                return ArticleCard(
+                  article: article,
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => articleDetailPageBuilder(article),
+                      ),
+                    );
+                  },
+                );
               },
             ),
     );

@@ -39,6 +39,35 @@ void main() {
     expect(find.text('今天'), findsOneWidget);
   });
 
+  testWidgets('点击文章卡片后把完整文章对象传给详情页', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+    Article? receivedArticle;
+
+    await tester.pumpWidget(
+      _testApp(
+        repository,
+        articleDetailPageBuilder: (article) {
+          receivedArticle = article;
+          return Scaffold(
+            appBar: AppBar(title: const Text('测试详情页')),
+            body: Text(article.link),
+          );
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Flutter 面试准备'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('测试详情页'), findsOneWidget);
+    expect(find.text('https://example.com/1'), findsOneWidget);
+    expect(receivedArticle, same(firstArticle));
+    expect(find.byType(BackButton), findsOneWidget);
+  });
+
   testWidgets('Riverpod 错误状态点击重试后恢复文章列表', (tester) async {
     final repository = _SequenceRepository([
       () => Future.error(const ArticleLoadException('测试网络断开')),
@@ -92,10 +121,15 @@ void main() {
   });
 }
 
-Widget _testApp(ArticleRepository repository) {
+Widget _testApp(
+  ArticleRepository repository, {
+  Widget Function(Article article)? articleDetailPageBuilder,
+}) {
   return ProviderScope(
     overrides: [articleRepositoryProvider.overrideWithValue(repository)],
-    child: const MaterialApp(home: ArticleListPage()),
+    child: MaterialApp(
+      home: ArticleListPage(articleDetailPageBuilder: articleDetailPageBuilder),
+    ),
   );
 }
 
