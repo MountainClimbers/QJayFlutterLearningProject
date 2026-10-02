@@ -23,15 +23,3 @@ Article _$ArticleFromJson(Map<String, dynamic> json) => Article(
       ? ''
       : _plainText(json['niceShareDate']),
 );
-
-Map<String, dynamic> _$ArticleToJson(Article instance) => <String, dynamic>{
-  'id': instance.id,
-  'title': instance.title,
-  'link': instance.link,
-  'author': instance.author,
-  'shareUser': instance.shareUser,
-  'superChapterName': instance.superChapterName,
-  'chapterName': instance.chapterName,
-  'niceDate': instance.niceDate,
-  'niceShareDate': instance.niceShareDate,
-};

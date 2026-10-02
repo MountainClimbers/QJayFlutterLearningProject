@@ -16,7 +16,7 @@
 
 | 职责 | 技术 | 作用 |
 | --- | --- | --- |
-| 数据对象 | `json_serializable` | 自动生成 `fromJson/toJson`，减少手写映射 |
+| 数据对象 | `json_serializable` | 自动生成 `fromJson`，减少手写映射 |
 | 网络请求 | `Dio` | 统一配置域名、超时和网络异常 |
 | 状态管理 | `Riverpod AsyncNotifier` | 管理加载、成功、错误和刷新状态 |
 | 下拉刷新 | `RefreshIndicator` | Flutter 官方 Material 下拉刷新组件 |

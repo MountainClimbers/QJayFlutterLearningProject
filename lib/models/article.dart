@@ -3,8 +3,7 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'article.g.dart';
 
-/// 使用 json_serializable 自动生成重复的 JSON 字段映射代码。
-@JsonSerializable()
+@JsonSerializable(createToJson: false)
 class Article {
   const Article({
     required this.id,
@@ -18,8 +17,7 @@ class Article {
     this.niceShareDate = '',
   });
 
-  factory Article.fromJson(Map<String, dynamic> json) =>
-      _$ArticleFromJson(json);
+  factory Article.fromJson(Map<String, dynamic> json) => _$ArticleFromJson(json);
 
   @JsonKey(fromJson: _intValue)
   final int id;
@@ -48,7 +46,6 @@ class Article {
   @JsonKey(fromJson: _plainText)
   final String niceShareDate;
 
-  /// 这些 getter 保存页面展示规则，生成代码只处理字段映射。
   String get displayAuthor => author.isNotEmpty ? author : shareUser;
 
   String get displayChapter => [
@@ -57,8 +54,6 @@ class Article {
   ].where((name) => name.isNotEmpty).join(' / ');
 
   String get displayDate => niceDate.isNotEmpty ? niceDate : niceShareDate;
-
-  Map<String, dynamic> toJson() => _$ArticleToJson(this);
 }
 
 final _htmlUnescape = HtmlUnescape();

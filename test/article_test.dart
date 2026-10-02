@@ -21,7 +21,6 @@ void main() {
     expect(article.displayChapter, '移动开发 / Flutter');
     expect(article.displayDate, '刚刚');
     expect(article.link, 'https://example.com/flutter');
-    expect(article.toJson()['id'], 42);
   });
 
   test('生成式文章模型容忍接口中的空值与数字字符串', () {
