@@ -71,6 +71,9 @@ class _LoginPageState extends State<LoginPage> {
                   key: const ValueKey('login-username-field'),
                   controller: _usernameController,
                   autofillHints: const [AutofillHints.username],
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  enableIMEPersonalizedLearning: false,
                   textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: '用户名',
@@ -87,6 +90,9 @@ class _LoginPageState extends State<LoginPage> {
                   controller: _passwordController,
                   focusNode: _passwordFocusNode,
                   autofillHints: const [AutofillHints.password],
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  enableIMEPersonalizedLearning: false,
                   obscureText: _obscurePassword,
                   textInputAction: TextInputAction.done,
                   decoration: InputDecoration(

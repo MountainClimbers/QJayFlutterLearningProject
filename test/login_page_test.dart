@@ -12,6 +12,25 @@ void main() {
     expect(find.byKey(const ValueKey('login-submit-button')), findsOneWidget);
   });
 
+  testWidgets('凭证输入关闭键盘纠错、建议和个性化学习', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+
+    for (final key in const [
+      ValueKey('login-username-field'),
+      ValueKey('login-password-field'),
+    ]) {
+      final editor = tester.widget<EditableText>(
+        find.descendant(
+          of: find.byKey(key),
+          matching: find.byType(EditableText),
+        ),
+      );
+      expect(editor.autocorrect, isFalse);
+      expect(editor.enableSuggestions, isFalse);
+      expect(editor.enableIMEPersonalizedLearning, isFalse);
+    }
+  });
+
   testWidgets('空表单提交时显示用户名和密码错误', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoginPage()));
 
@@ -101,12 +120,8 @@ void main() {
 
   testWidgets('键盘下一项移动焦点并通过完成操作提交表单', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoginPage()));
-    final usernameFinder = find.byKey(
-      const ValueKey('login-username-field'),
-    );
-    final passwordFinder = find.byKey(
-      const ValueKey('login-password-field'),
-    );
+    final usernameFinder = find.byKey(const ValueKey('login-username-field'));
+    final passwordFinder = find.byKey(const ValueKey('login-password-field'));
 
     await tester.enterText(usernameFinder, 'MountainClimbers');
     await tester.testTextInput.receiveAction(TextInputAction.next);
