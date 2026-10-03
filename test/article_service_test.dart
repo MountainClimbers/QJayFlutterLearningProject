@@ -1,11 +1,41 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qjay_flutter_learning/services/article_service.dart';
 
 void main() {
+  test('调试模式把限定范围的证书例外接入原生客户端', () {
+    final httpClient = _RecordingHttpClient();
+    final dio = createArticleDio(
+      debugMode: true,
+      createHttpClient: () => httpClient,
+    );
+    final adapter = dio.httpClientAdapter as IOHttpClientAdapter;
+
+    expect(adapter.createHttpClient, isNotNull);
+    expect(adapter.createHttpClient!(), same(httpClient));
+
+    final callback = httpClient.recordedBadCertificateCallback;
+    expect(callback, isNotNull);
+    expect(callback!(_FakeCertificate(), 'www.wanandroid.com', 443), isTrue);
+    expect(callback(_FakeCertificate(), 'www.wanandroid.com', 80), isFalse);
+    expect(callback(_FakeCertificate(), 'example.com', 443), isFalse);
+  });
+
+  test('发布模式不安装忽略证书的原生客户端', () {
+    final dio = createArticleDio(
+      debugMode: false,
+      createHttpClient: _RecordingHttpClient.new,
+    );
+    final adapter = dio.httpClientAdapter as IOHttpClientAdapter;
+
+    expect(adapter.createHttpClient, isNull);
+  });
+
   test('Dio 文章服务请求正确路径并转换文章列表', () async {
     // 如果 baseUrl、请求路径或 data.datas 解析错误，这个测试就会失败。
     final dio = _stubDio((options) {
@@ -147,4 +177,24 @@ class _StubAdapter implements HttpClientAdapter {
 
   @override
   void close({bool force = false}) {}
+}
+
+class _RecordingHttpClient implements HttpClient {
+  bool Function(X509Certificate certificate, String host, int port)?
+  recordedBadCertificateCallback;
+
+  @override
+  set badCertificateCallback(
+    bool Function(X509Certificate certificate, String host, int port)? callback,
+  ) {
+    recordedBadCertificateCallback = callback;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _FakeCertificate implements X509Certificate {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
