@@ -1,25 +1,46 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../auth/login_page.dart';
 import '../../models/article.dart';
 import 'article_card.dart';
 import 'article_detail_page.dart';
 import 'article_list_controller.dart';
 
 typedef ArticleDetailPageBuilder = Widget Function(Article article);
+typedef LoginPageBuilder = Widget Function();
 
 /// ConsumerWidget 只根据 Riverpod 状态绘制页面，不手动保存异步状态。
 class ArticleListPage extends ConsumerWidget {
-  const ArticleListPage({super.key, this.articleDetailPageBuilder});
+  const ArticleListPage({
+    super.key,
+    this.articleDetailPageBuilder,
+    this.loginPageBuilder,
+  });
 
   final ArticleDetailPageBuilder? articleDetailPageBuilder;
+  final LoginPageBuilder? loginPageBuilder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final articles = ref.watch(articleListControllerProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('文章列表'), centerTitle: false),
+      appBar: AppBar(
+        title: const Text('文章列表'),
+        centerTitle: false,
+        actions: [
+          IconButton(
+            tooltip: '登录',
+            onPressed: () {
+              final builder = loginPageBuilder ?? () => const LoginPage();
+              Navigator.of(context)
+                  .push(MaterialPageRoute<void>(builder: (_) => builder()));
+            },
+            icon: const Icon(Icons.login),
+          ),
+        ],
+      ),
       body: switch (articles) {
         AsyncData(:final value) => _ArticleList(
           articles: value,

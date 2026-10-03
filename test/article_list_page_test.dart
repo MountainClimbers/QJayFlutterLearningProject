@@ -68,6 +68,30 @@ void main() {
     expect(find.byType(BackButton), findsOneWidget);
   });
 
+  testWidgets('点击登录入口后进入登录页面', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+
+    await tester.pumpWidget(
+      _testApp(
+        repository,
+        loginPageBuilder: () => Scaffold(
+          appBar: AppBar(title: const Text('测试登录页')),
+          body: const Text('登录表单'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('登录'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('测试登录页'), findsOneWidget);
+    expect(find.text('登录表单'), findsOneWidget);
+    expect(find.byType(BackButton), findsOneWidget);
+  });
+
   testWidgets('Riverpod 错误状态点击重试后恢复文章列表', (tester) async {
     final repository = _SequenceRepository([
       () => Future.error(const ArticleLoadException('测试网络断开')),
@@ -124,11 +148,15 @@ void main() {
 Widget _testApp(
   ArticleRepository repository, {
   Widget Function(Article article)? articleDetailPageBuilder,
+  Widget Function()? loginPageBuilder,
 }) {
   return ProviderScope(
     overrides: [articleRepositoryProvider.overrideWithValue(repository)],
     child: MaterialApp(
-      home: ArticleListPage(articleDetailPageBuilder: articleDetailPageBuilder),
+      home: ArticleListPage(
+        articleDetailPageBuilder: articleDetailPageBuilder,
+        loginPageBuilder: loginPageBuilder,
+      ),
     ),
   );
 }
