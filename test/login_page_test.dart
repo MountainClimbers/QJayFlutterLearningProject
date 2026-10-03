@@ -1,0 +1,76 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:qjay_flutter_learning/features/auth/login_page.dart';
+
+void main() {
+  testWidgets('登录页面展示用户名、密码和提交按钮', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+
+    expect(find.text('登录'), findsWidgets);
+    expect(find.byKey(const ValueKey('login-username-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('login-password-field')), findsOneWidget);
+    expect(find.byKey(const ValueKey('login-submit-button')), findsOneWidget);
+  });
+
+  testWidgets('空表单提交时显示用户名和密码错误', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+
+    await tester.tap(find.byKey(const ValueKey('login-submit-button')));
+    await tester.pump();
+
+    expect(find.text('请输入用户名'), findsOneWidget);
+    expect(find.text('请输入密码'), findsOneWidget);
+  });
+
+  testWidgets('密码少于六位时阻止提交', (tester) async {
+    LoginCredentials? submittedCredentials;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginPage(
+          onSubmit: (credentials) => submittedCredentials = credentials,
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('login-username-field')),
+      'MountainClimbers',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('login-password-field')),
+      '12345',
+    );
+    await tester.tap(find.byKey(const ValueKey('login-submit-button')));
+    await tester.pump();
+
+    expect(find.text('密码至少需要 6 位'), findsOneWidget);
+    expect(submittedCredentials, isNull);
+  });
+
+  testWidgets('有效表单提交去除首尾空格后的用户名和原密码', (tester) async {
+    LoginCredentials? submittedCredentials;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginPage(
+          onSubmit: (credentials) => submittedCredentials = credentials,
+        ),
+      ),
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('login-username-field')),
+      '  MountainClimbers  ',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('login-password-field')),
+      '123456',
+    );
+    await tester.tap(find.byKey(const ValueKey('login-submit-button')));
+    await tester.pump();
+
+    expect(submittedCredentials?.username, 'MountainClimbers');
+    expect(submittedCredentials?.password, '123456');
+    expect(find.text('请输入用户名'), findsNothing);
+    expect(find.text('请输入密码'), findsNothing);
+  });
+}
