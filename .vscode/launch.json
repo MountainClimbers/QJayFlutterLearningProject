@@ -10,6 +10,13 @@
             "type": "dart"
         },
         {
+            "name": "QJayFlutterLearningProject (Flutter iPhone 17 Pro)",
+            "request": "launch",
+            "type": "dart",
+            "program": "lib/main.dart",
+            "deviceId": "F4B13AFF-3809-4153-B1DA-FEF2973271D9"
+        },
+        {
             "name": "QJayFlutterLearningProject (profile mode)",
             "request": "launch",
             "type": "dart",
