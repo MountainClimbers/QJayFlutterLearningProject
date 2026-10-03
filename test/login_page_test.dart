@@ -98,4 +98,29 @@ void main() {
 
     expect(passwordField().obscureText, isTrue);
   });
+
+  testWidgets('键盘下一项移动焦点并通过完成操作提交表单', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+    final usernameFinder = find.byKey(
+      const ValueKey('login-username-field'),
+    );
+    final passwordFinder = find.byKey(
+      const ValueKey('login-password-field'),
+    );
+
+    await tester.enterText(usernameFinder, 'MountainClimbers');
+    await tester.testTextInput.receiveAction(TextInputAction.next);
+    await tester.pump();
+
+    final passwordEditor = tester.widget<EditableText>(
+      find.descendant(of: passwordFinder, matching: find.byType(EditableText)),
+    );
+    expect(passwordEditor.focusNode.hasFocus, isTrue);
+
+    await tester.enterText(passwordFinder, '123456');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pump();
+
+    expect(find.text('表单校验通过，第 4 天接入登录接口'), findsOneWidget);
+  });
 }
