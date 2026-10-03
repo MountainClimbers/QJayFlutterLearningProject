@@ -73,4 +73,29 @@ void main() {
     expect(find.text('请输入用户名'), findsNothing);
     expect(find.text('请输入密码'), findsNothing);
   });
+
+  testWidgets('密码默认隐藏并可以切换显示状态', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+
+    EditableText passwordField() => tester.widget<EditableText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('login-password-field')),
+        matching: find.byType(EditableText),
+      ),
+    );
+
+    expect(passwordField().obscureText, isTrue);
+    expect(find.byTooltip('显示密码'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('login-password-visibility')));
+    await tester.pump();
+
+    expect(passwordField().obscureText, isFalse);
+    expect(find.byTooltip('隐藏密码'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('login-password-visibility')));
+    await tester.pump();
+
+    expect(passwordField().obscureText, isTrue);
+  });
 }

@@ -25,6 +25,7 @@ class _LoginPageState extends State<LoginPage> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final _passwordFocusNode = FocusNode();
+  bool _obscurePassword = true;
 
   @override
   void dispose() {
@@ -86,13 +87,25 @@ class _LoginPageState extends State<LoginPage> {
                   controller: _passwordController,
                   focusNode: _passwordFocusNode,
                   autofillHints: const [AutofillHints.password],
-                  obscureText: true,
+                  obscureText: _obscurePassword,
                   textInputAction: TextInputAction.done,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: '密码',
                     hintText: '至少 6 位',
-                    prefixIcon: Icon(Icons.lock_outline),
-                    border: OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      key: const ValueKey('login-password-visibility'),
+                      tooltip: _obscurePassword ? '显示密码' : '隐藏密码',
+                      onPressed: () {
+                        setState(() => _obscurePassword = !_obscurePassword);
+                      },
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                    ),
+                    border: const OutlineInputBorder(),
                   ),
                   validator: _validatePassword,
                   onFieldSubmitted: (_) => _submit(),
