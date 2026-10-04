@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/login_user.dart';
@@ -16,16 +18,27 @@ final authControllerProvider =
 
 /// 管理应用范围内的登录用户，以及登录过程中加载和错误状态。
 class AuthController extends AsyncNotifier<LoginUser?> {
+  final Completer<void> _initialRestoreCompleted = Completer<void>();
+  int _latestLoginOperation = 0;
+
   @override
   Future<LoginUser?> build() async {
-    final repository = await ref.watch(authRepositoryProvider.future);
-    return repository.restoreSession();
+    try {
+      final repository = await ref.watch(authRepositoryProvider.future);
+      return await repository.restoreSession();
+    } finally {
+      if (!_initialRestoreCompleted.isCompleted) {
+        _initialRestoreCompleted.complete();
+      }
+    }
   }
 
   Future<LoginUser> login({
     required String username,
     required String password,
   }) async {
+    await _initialRestoreCompleted.future;
+    final operation = ++_latestLoginOperation;
     state = const AsyncLoading<LoginUser?>();
     try {
       final repository = await ref.read(authRepositoryProvider.future);
@@ -33,10 +46,14 @@ class AuthController extends AsyncNotifier<LoginUser?> {
         username: username,
         password: password,
       );
-      state = AsyncData(user);
+      if (operation == _latestLoginOperation) {
+        state = AsyncData(user);
+      }
       return user;
     } catch (error, stackTrace) {
-      state = AsyncError(error, stackTrace);
+      if (operation == _latestLoginOperation) {
+        state = AsyncError(error, stackTrace);
+      }
       rethrow;
     }
   }

@@ -31,13 +31,23 @@ class ArticleListPage extends ConsumerWidget {
       AsyncData(:final value) => value,
       _ => null,
     };
+    final isRestoringSession = authState is AsyncLoading<LoginUser?>;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('文章列表'),
         centerTitle: false,
         actions: [
-          if (currentUser == null)
+          if (isRestoringSession)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 18),
+              child: SizedBox.square(
+                key: ValueKey('auth-restore-progress'),
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else if (currentUser == null)
             IconButton(
               tooltip: '登录',
               onPressed: () => _openLogin(context, ref),

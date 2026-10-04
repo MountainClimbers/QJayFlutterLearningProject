@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qjay_flutter_learning/features/auth/auth_controller.dart';
@@ -49,6 +51,55 @@ void main() {
     expect(state.hasError, isTrue);
     expect(state.error, exception);
   });
+
+  test('启动恢复完成后才执行登录，恢复结果不会覆盖登录用户', () async {
+    final restoreCompleter = Completer<LoginUser?>();
+    const loggedInUser = LoginUser(id: 9, username: 'new-user');
+    final repository = _FakeAuthRepository(
+      restoreHandler: () => restoreCompleter.future,
+      loginResult: loggedInUser,
+    );
+    final container = _createContainer(repository);
+    addTearDown(container.dispose);
+
+    final loginFuture = container
+        .read(authControllerProvider.notifier)
+        .login(username: 'new-user', password: '123456');
+    await Future<void>.delayed(Duration.zero);
+    expect(repository.loginCallCount, 0);
+
+    restoreCompleter.complete(null);
+    expect(await loginFuture, loggedInUser);
+    expect(container.read(authControllerProvider).value, loggedInUser);
+  });
+
+  test('多个登录请求只允许最后开始的请求更新状态', () async {
+    final firstCompleter = Completer<LoginUser>();
+    final secondCompleter = Completer<LoginUser>();
+    final repository = _FakeAuthRepository(
+      loginHandler: (username, _) =>
+          username == 'first' ? firstCompleter.future : secondCompleter.future,
+    );
+    final container = _createContainer(repository);
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    final firstLogin = container
+        .read(authControllerProvider.notifier)
+        .login(username: 'first', password: '123456');
+    final secondLogin = container
+        .read(authControllerProvider.notifier)
+        .login(username: 'second', password: '123456');
+    const secondUser = LoginUser(id: 2, username: 'second');
+    secondCompleter.complete(secondUser);
+    expect(await secondLogin, secondUser);
+    expect(container.read(authControllerProvider).value, secondUser);
+
+    const firstUser = LoginUser(id: 1, username: 'first');
+    firstCompleter.complete(firstUser);
+    expect(await firstLogin, firstUser);
+    expect(container.read(authControllerProvider).value, secondUser);
+  });
 }
 
 ProviderContainer _createContainer(AuthRepository repository) {
@@ -60,13 +111,23 @@ ProviderContainer _createContainer(AuthRepository repository) {
 }
 
 class _FakeAuthRepository implements AuthRepository {
-  _FakeAuthRepository({this.restoredUser, this.loginResult, this.loginError});
+  _FakeAuthRepository({
+    this.restoredUser,
+    this.loginResult,
+    this.loginError,
+    this.restoreHandler,
+    this.loginHandler,
+  });
 
   final LoginUser? restoredUser;
   final LoginUser? loginResult;
   final Object? loginError;
+  final Future<LoginUser?> Function()? restoreHandler;
+  final Future<LoginUser> Function(String username, String password)?
+  loginHandler;
   String? lastUsername;
   String? lastPassword;
+  int loginCallCount = 0;
 
   @override
   Future<LoginUser> login({
@@ -75,10 +136,15 @@ class _FakeAuthRepository implements AuthRepository {
   }) async {
     lastUsername = username;
     lastPassword = password;
+    loginCallCount += 1;
     if (loginError case final Object error) throw error;
+    if (loginHandler case final handler?) return handler(username, password);
     return loginResult ?? const LoginUser(username: 'default');
   }
 
   @override
-  Future<LoginUser?> restoreSession() async => restoredUser;
+  Future<LoginUser?> restoreSession() async {
+    if (restoreHandler case final handler?) return handler();
+    return restoredUser;
+  }
 }

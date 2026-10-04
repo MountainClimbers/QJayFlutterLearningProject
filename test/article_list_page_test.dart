@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,7 +34,7 @@ void main() {
     ]);
 
     await tester.pumpWidget(_testApp(repository));
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
 
     await tester.pumpAndSettle();
 
@@ -113,6 +115,30 @@ void main() {
     expect(find.byTooltip('已登录：山友'), findsOneWidget);
     expect(find.text('山友'), findsOneWidget);
     expect(find.byTooltip('登录'), findsNothing);
+  });
+
+  testWidgets('恢复登录状态期间暂时禁用登录入口', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+    final restoreCompleter = Completer<LoginUser?>();
+
+    await tester.pumpWidget(
+      _testApp(
+        repository,
+        authRepository: _FakeAuthRepository(
+          restoreHandler: () => restoreCompleter.future,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('auth-restore-progress')), findsOneWidget);
+    expect(find.byTooltip('登录'), findsNothing);
+
+    restoreCompleter.complete(null);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('登录'), findsOneWidget);
   });
 
   testWidgets('首页登录入口调用接口状态并展示成功用户', (tester) async {
@@ -236,10 +262,15 @@ class _SequenceRepository implements ArticleRepository {
 }
 
 class _FakeAuthRepository implements AuthRepository {
-  _FakeAuthRepository({this.restoredUser, this.loginResult});
+  _FakeAuthRepository({
+    this.restoredUser,
+    this.loginResult,
+    this.restoreHandler,
+  });
 
   final LoginUser? restoredUser;
   final LoginUser? loginResult;
+  final Future<LoginUser?> Function()? restoreHandler;
   String? lastUsername;
   String? lastPassword;
 
@@ -254,5 +285,8 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<LoginUser?> restoreSession() async => restoredUser;
+  Future<LoginUser?> restoreSession() async {
+    if (restoreHandler case final handler?) return handler();
+    return restoredUser;
+  }
 }
