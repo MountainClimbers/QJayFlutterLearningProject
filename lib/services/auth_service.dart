@@ -44,7 +44,11 @@ class AuthService implements AuthRepository {
         throw const AuthException('服务器返回的数据格式不正确');
       }
 
-      final errorCode = (root['errorCode'] as num?)?.toInt() ?? -1;
+      final rawErrorCode = root['errorCode'];
+      if (rawErrorCode is! num) {
+        throw const AuthException('服务器返回的数据无法解析');
+      }
+      final errorCode = rawErrorCode.toInt();
       if (errorCode != 0) {
         final message = root['errorMsg']?.toString().trim();
         throw AuthException(

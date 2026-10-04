@@ -160,6 +160,28 @@ void main() {
     );
   });
 
+  test('登录服务把错误码类型异常转换成解析异常', () async {
+    final dio = _stubDio(
+      (_) => _jsonResponse({
+        'errorCode': '零',
+        'errorMsg': '',
+        'data': <String, dynamic>{},
+      }),
+    );
+    final service = AuthService(dio: dio, cookieJar: CookieJar());
+
+    expect(
+      () => service.login(username: 'test', password: '123456'),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          '服务器返回的数据无法解析',
+        ),
+      ),
+    );
+  });
+
   test('登录服务区分 HTTP 错误和连接错误', () async {
     final httpService = AuthService(
       dio: _stubDio((_) => ResponseBody.fromString('服务异常', 503)),
