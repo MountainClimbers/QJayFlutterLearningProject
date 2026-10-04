@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_controller.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_page.dart';
+import 'package:qjay_flutter_learning/features/auth/auth_controller.dart';
 import 'package:qjay_flutter_learning/models/article.dart';
+import 'package:qjay_flutter_learning/models/login_user.dart';
 import 'package:qjay_flutter_learning/services/article_service.dart';
+import 'package:qjay_flutter_learning/services/auth_service.dart';
 
 void main() {
   const firstArticle = Article(
@@ -92,6 +95,58 @@ void main() {
     expect(find.byType(BackButton), findsOneWidget);
   });
 
+  testWidgets('恢复登录状态后在首页展示当前用户', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+
+    await tester.pumpWidget(
+      _testApp(
+        repository,
+        authRepository: _FakeAuthRepository(
+          restoredUser: const LoginUser(id: 7, nickname: '山友'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('已登录：山友'), findsOneWidget);
+    expect(find.text('山友'), findsOneWidget);
+    expect(find.byTooltip('登录'), findsNothing);
+  });
+
+  testWidgets('首页登录入口调用接口状态并展示成功用户', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+    final authRepository = _FakeAuthRepository(
+      loginResult: const LoginUser(id: 8, username: 'MountainClimbers'),
+    );
+
+    await tester.pumpWidget(
+      _testApp(repository, authRepository: authRepository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('登录'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('login-username-field')),
+      'MountainClimbers',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('login-password-field')),
+      '123456',
+    );
+    await tester.tap(find.byKey(const ValueKey('login-submit-button')));
+    await tester.pumpAndSettle();
+
+    expect(authRepository.lastUsername, 'MountainClimbers');
+    expect(authRepository.lastPassword, '123456');
+    expect(find.byTooltip('已登录：MountainClimbers'), findsOneWidget);
+    expect(find.text('登录成功：MountainClimbers'), findsOneWidget);
+  });
+
   testWidgets('Riverpod 错误状态点击重试后恢复文章列表', (tester) async {
     final repository = _SequenceRepository([
       () => Future.error(const ArticleLoadException('测试网络断开')),
@@ -149,9 +204,15 @@ Widget _testApp(
   ArticleRepository repository, {
   Widget Function(Article article)? articleDetailPageBuilder,
   Widget Function()? loginPageBuilder,
+  AuthRepository? authRepository,
 }) {
   return ProviderScope(
-    overrides: [articleRepositoryProvider.overrideWithValue(repository)],
+    overrides: [
+      articleRepositoryProvider.overrideWithValue(repository),
+      authRepositoryProvider.overrideWith(
+        (ref) async => authRepository ?? _FakeAuthRepository(),
+      ),
+    ],
     child: MaterialApp(
       home: ArticleListPage(
         articleDetailPageBuilder: articleDetailPageBuilder,
@@ -172,4 +233,26 @@ class _SequenceRepository implements ArticleRepository {
     final index = callCount++;
     return responses[index]();
   }
+}
+
+class _FakeAuthRepository implements AuthRepository {
+  _FakeAuthRepository({this.restoredUser, this.loginResult});
+
+  final LoginUser? restoredUser;
+  final LoginUser? loginResult;
+  String? lastUsername;
+  String? lastPassword;
+
+  @override
+  Future<LoginUser> login({
+    required String username,
+    required String password,
+  }) async {
+    lastUsername = username;
+    lastPassword = password;
+    return loginResult ?? LoginUser(username: username);
+  }
+
+  @override
+  Future<LoginUser?> restoreSession() async => restoredUser;
 }

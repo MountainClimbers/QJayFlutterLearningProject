@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/login_page.dart';
+import '../auth/auth_controller.dart';
 import '../../models/article.dart';
+import '../../models/login_user.dart';
 import 'article_card.dart';
 import 'article_detail_page.dart';
 import 'article_list_controller.dart';
@@ -24,21 +26,25 @@ class ArticleListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final articles = ref.watch(articleListControllerProvider);
+    final authState = ref.watch(authControllerProvider);
+    final currentUser = switch (authState) {
+      AsyncData(:final value) => value,
+      _ => null,
+    };
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('文章列表'),
         centerTitle: false,
         actions: [
-          IconButton(
-            tooltip: '登录',
-            onPressed: () {
-              final builder = loginPageBuilder ?? () => const LoginPage();
-              Navigator.of(context)
-                  .push(MaterialPageRoute<void>(builder: (_) => builder()));
-            },
-            icon: const Icon(Icons.login),
-          ),
+          if (currentUser == null)
+            IconButton(
+              tooltip: '登录',
+              onPressed: () => _openLogin(context, ref),
+              icon: const Icon(Icons.login),
+            )
+          else
+            _CurrentUserView(user: currentUser),
         ],
       ),
       body: switch (articles) {
@@ -54,6 +60,56 @@ class ArticleListPage extends ConsumerWidget {
         ),
         _ => const Center(child: CircularProgressIndicator()),
       },
+    );
+  }
+
+  Future<void> _openLogin(BuildContext context, WidgetRef ref) async {
+    final builder =
+        loginPageBuilder ??
+        () => LoginPage(
+          onSubmit: (credentials) => ref
+              .read(authControllerProvider.notifier)
+              .login(
+                username: credentials.username,
+                password: credentials.password,
+              ),
+        );
+    final user = await Navigator.of(context)
+        .push<LoginUser>(MaterialPageRoute(builder: (_) => builder()));
+    if (user != null && context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('登录成功：${user.displayName}')));
+    }
+  }
+}
+
+class _CurrentUserView extends StatelessWidget {
+  const _CurrentUserView({required this.user});
+
+  final LoginUser user;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '已登录：${user.displayName}',
+      child: Padding(
+        padding: const EdgeInsets.only(right: 16),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.account_circle_outlined),
+            const SizedBox(width: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 120),
+              child: Text(
+                user.displayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
