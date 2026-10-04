@@ -13,7 +13,7 @@ void main() {
     expect(dio.options.receiveTimeout, const Duration(seconds: 10));
   });
 
-  test('调试模式把限定范围的证书例外接入原生客户端', () {
+  test('调试模式为玩安卓的两个 HTTPS 域名接入证书例外', () {
     final httpClient = _RecordingHttpClient();
     final dio = createWanAndroidDio(
       debugMode: true,
@@ -27,6 +27,7 @@ void main() {
     final callback = httpClient.recordedBadCertificateCallback;
     expect(callback, isNotNull);
     expect(callback!(_FakeCertificate(), 'www.wanandroid.com', 443), isTrue);
+    expect(callback(_FakeCertificate(), 'wanandroid.com', 443), isTrue);
     expect(callback(_FakeCertificate(), 'www.wanandroid.com', 80), isFalse);
     expect(callback(_FakeCertificate(), 'example.com', 443), isFalse);
   });

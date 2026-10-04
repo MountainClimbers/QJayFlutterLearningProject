@@ -8,7 +8,7 @@ const wanAndroidBaseUrl = 'https://www.wanandroid.com';
 
 /// 创建文章、登录等服务共享的 WanAndroid 客户端。
 ///
-/// Debug 模式临时允许目标域名的过期证书；Release 无法开启该例外。
+/// Debug 模式临时允许玩安卓接口的过期证书；Release 无法开启该例外。
 Dio createWanAndroidDio({
   bool debugMode = kDebugMode,
   HttpClient Function()? createHttpClient,
@@ -25,7 +25,9 @@ Dio createWanAndroidDio({
       createHttpClient: () {
         final client = (createHttpClient ?? HttpClient.new)();
         client.badCertificateCallback = (certificate, host, port) {
-          return host == 'www.wanandroid.com' && port == 443;
+          // 接口可能在 www 与非 www 域名间跳转；只允许这两个 HTTPS 主机。
+          return port == 443 &&
+              (host == 'www.wanandroid.com' || host == 'wanandroid.com');
         };
         return client;
       },
