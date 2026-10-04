@@ -1,30 +1,21 @@
-import 'package:json_annotation/json_annotation.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
+part 'login_user.freezed.dart';
 part 'login_user.g.dart';
 
-@JsonSerializable(createToJson: false)
-class LoginUser {
-  const LoginUser({
-    this.id = 0,
-    this.username = '',
-    this.nickname = '',
-    this.publicName = '',
-  });
+@Freezed(toJson: false)
+abstract class LoginUser with _$LoginUser {
+  const LoginUser._();
+
+  const factory LoginUser({
+    @Default(0) int id,
+    @Default('') String username,
+    @Default('') String nickname,
+    @Default('') String publicName,
+  }) = _LoginUser;
 
   factory LoginUser.fromJson(Map<String, dynamic> json) =>
       _$LoginUserFromJson(json);
-
-  @JsonKey(defaultValue: 0)
-  final int id;
-
-  @JsonKey(defaultValue: '')
-  final String username;
-
-  @JsonKey(defaultValue: '')
-  final String nickname;
-
-  @JsonKey(defaultValue: '')
-  final String publicName;
 
   String get displayName {
     if (nickname.isNotEmpty) return nickname;
