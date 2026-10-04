@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qjay_flutter_learning/features/auth/login_page.dart';
+import 'package:qjay_flutter_learning/models/login_user.dart';
+import 'package:qjay_flutter_learning/services/auth_service.dart';
 
 void main() {
   testWidgets('登录页面展示用户名、密码和提交按钮', (tester) async {
@@ -46,7 +50,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: LoginPage(
-          onSubmit: (credentials) => submittedCredentials = credentials,
+          onSubmit: (credentials) {
+            submittedCredentials = credentials;
+            return null;
+          },
         ),
       ),
     );
@@ -71,7 +78,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: LoginPage(
-          onSubmit: (credentials) => submittedCredentials = credentials,
+          onSubmit: (credentials) {
+            submittedCredentials = credentials;
+            return null;
+          },
         ),
       ),
     );
@@ -136,6 +146,89 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
 
-    expect(find.text('表单校验通过，第 4 天接入登录接口'), findsOneWidget);
+    expect(find.text('表单校验通过'), findsOneWidget);
   });
+
+  testWidgets('登录请求期间禁用表单并显示加载进度', (tester) async {
+    final completer = Completer<LoginUser?>();
+    await tester.pumpWidget(
+      MaterialApp(home: LoginPage(onSubmit: (_) => completer.future)),
+    );
+
+    await _enterValidCredentials(tester);
+    await tester.tap(find.byKey(const ValueKey('login-submit-button')));
+    await tester.pump();
+
+    final button = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('login-submit-button')),
+    );
+    expect(button.onPressed, isNull);
+    expect(find.byKey(const ValueKey('login-submit-progress')), findsOneWidget);
+
+    completer.complete(null);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('登录失败时显示接口错误并允许再次提交', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginPage(
+          onSubmit: (_) async => throw const AuthException('账号密码不匹配！'),
+        ),
+      ),
+    );
+
+    await _enterValidCredentials(tester);
+    await tester.tap(find.byKey(const ValueKey('login-submit-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('账号密码不匹配！'), findsOneWidget);
+    final button = tester.widget<FilledButton>(
+      find.byKey(const ValueKey('login-submit-button')),
+    );
+    expect(button.onPressed, isNotNull);
+  });
+
+  testWidgets('登录成功后把用户返回给上一页', (tester) async {
+    LoginUser? returnedUser;
+    const user = LoginUser(id: 7, nickname: '山友');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () async {
+                returnedUser = await Navigator.of(context).push<LoginUser>(
+                  MaterialPageRoute(
+                    builder: (_) => LoginPage(onSubmit: (_) async => user),
+                  ),
+                );
+              },
+              child: const Text('打开登录'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开登录'));
+    await tester.pumpAndSettle();
+    await _enterValidCredentials(tester);
+    await tester.tap(find.byKey(const ValueKey('login-submit-button')));
+    await tester.pumpAndSettle();
+
+    expect(returnedUser, user);
+    expect(find.text('打开登录'), findsOneWidget);
+  });
+}
+
+Future<void> _enterValidCredentials(WidgetTester tester) async {
+  await tester.enterText(
+    find.byKey(const ValueKey('login-username-field')),
+    'MountainClimbers',
+  );
+  await tester.enterText(
+    find.byKey(const ValueKey('login-password-field')),
+    '123456',
+  );
 }
