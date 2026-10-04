@@ -18,6 +18,7 @@
 - `lib/models/login_user.dart`：登录用户数据对象，JSON 解析代码由 `json_serializable` 生成。
 - `lib/services/wan_android_client.dart`：玩安卓共享网络客户端和超时设置。
 - `lib/services/auth_service.dart`：登录 POST 请求、业务错误转换和 Cookie 恢复。
+- `lib/services/secure_cookie_storage.dart`：把 Cookie 序列化结果写入系统安全存储。
 - `lib/features/auth/auth_controller.dart`：Riverpod 全局登录状态。
 - `lib/features/auth/login_page.dart`：表单校验、加载状态和错误提示。
 - `lib/features/articles/article_list_page.dart`：打开登录页并展示当前用户。
@@ -28,7 +29,9 @@
 
 ## Cookie 和登录状态
 
-服务器登录成功后通过响应头设置 Cookie。`dio_cookie_manager` 负责在请求与响应之间自动传递 Cookie，`PersistCookieJar` 把 Cookie 文件保存到应用支持目录。应用启动时先读取用户名 Cookie；能读到就恢复用户，读不到就保持未登录。
+服务器登录成功后通过响应头设置 Cookie。`dio_cookie_manager` 负责在请求与响应之间自动传递 Cookie，`PersistCookieJar` 负责 Cookie 的过期和域名规则，`flutter_secure_storage` 把序列化结果保存到 iOS Keychain 或 Android Keystore 支持的安全存储中。应用启动时必须同时读取到用户名和认证令牌 Cookie 才恢复用户，缺少任意一个都保持未登录。
+
+启动恢复与登录请求会按顺序执行，多个登录请求发生重叠时只有最后开始的请求可以更新全局状态，避免旧结果覆盖新用户。
 
 当前练习项目没有实现退出登录。后续实现退出时，除了请求退出接口，还要清理 Cookie 并把 `AuthController` 改回未登录状态。
 

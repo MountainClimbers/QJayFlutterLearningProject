@@ -16,7 +16,7 @@
 
 - `Dio` 发送 POST 表单。
 - `dio_cookie_manager` 把 Cookie 自动附加到请求并从响应保存 Cookie。
-- `PersistCookieJar` 把 Cookie 保存到应用支持目录，重启后仍可恢复。
+- `PersistCookieJar` 管理 Cookie 规则，并通过 `flutter_secure_storage` 保存到系统安全存储，重启后仍可恢复。
 - `json_serializable` 生成登录用户的 JSON 映射。
 - `Riverpod AsyncNotifier` 保存恢复中、未登录、登录中、登录成功和失败状态。
 
@@ -26,7 +26,7 @@
 - 请求期间禁用输入框和登录按钮，并显示进度。
 - 登录失败时保留输入内容并显示服务端错误。
 - 登录成功后返回文章列表，右上角显示当前用户名。
-- App 启动时根据持久化 Cookie 恢复用户名。
+- App 启动时同时校验用户名和认证令牌 Cookie，再恢复用户名。
 
 ## 提交拆分
 
