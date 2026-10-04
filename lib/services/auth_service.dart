@@ -58,10 +58,17 @@ class AuthService implements AuthRepository {
       if (data is! Map<String, dynamic>) {
         throw const AuthException('服务器返回的数据格式不正确');
       }
-      return LoginUser.fromJson(data);
+      try {
+        return LoginUser.fromJson(data);
+      } on Object {
+        throw const AuthException('服务器返回的数据无法解析');
+      }
     } on AuthException {
       rethrow;
     } on DioException catch (error) {
+      if (error.error is FormatException) {
+        throw const AuthException('服务器返回的数据无法解析');
+      }
       final statusCode = error.response?.statusCode;
       if (statusCode != null) {
         throw AuthException('登录请求失败（$statusCode）');
@@ -77,17 +84,21 @@ class AuthService implements AuthRepository {
     final cookies = await _cookieJar.loadForRequest(
       Uri.parse('$wanAndroidBaseUrl/'),
     );
-    for (final name in const [
-      'loginUserName',
-      'loginUserName_wanandroid_com',
-    ]) {
-      for (final cookie in cookies) {
-        if (cookie.name == name && cookie.value.trim().isNotEmpty) {
-          return LoginUser(username: _decodeCookieValue(cookie.value));
-        }
+    String? username;
+    var hasAuthToken = false;
+    for (final cookie in cookies) {
+      final value = cookie.value.trim();
+      if (value.isEmpty) continue;
+      if (cookie.name == 'loginUserName' ||
+          cookie.name == 'loginUserName_wanandroid_com') {
+        username = _decodeCookieValue(value);
+      } else if (cookie.name == 'token_pass') {
+        hasAuthToken = true;
       }
     }
-    return null;
+    return username != null && hasAuthToken
+        ? LoginUser(username: username)
+        : null;
   }
 }
 
