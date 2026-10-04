@@ -1,0 +1,122 @@
+import 'dart:io';
+
+import 'package:cookie_jar/cookie_jar.dart';
+import 'package:dio/dio.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:path_provider/path_provider.dart';
+
+import '../models/login_user.dart';
+import 'wan_android_client.dart';
+
+abstract interface class AuthRepository {
+  Future<LoginUser> login({required String username, required String password});
+
+  Future<LoginUser?> restoreSession();
+}
+
+class AuthService implements AuthRepository {
+  AuthService({Dio? dio, CookieJar? cookieJar})
+    : _dio = dio ?? createWanAndroidDio(),
+      _cookieJar = cookieJar ?? CookieJar() {
+    _dio.options
+      ..baseUrl = wanAndroidBaseUrl
+      ..connectTimeout = const Duration(seconds: 10)
+      ..receiveTimeout = const Duration(seconds: 10);
+    if (_dio.interceptors.whereType<CookieManager>().isEmpty) {
+      _dio.interceptors.add(CookieManager(_cookieJar));
+    }
+  }
+
+  final Dio _dio;
+  final CookieJar _cookieJar;
+
+  @override
+  Future<LoginUser> login({
+    required String username,
+    required String password,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/user/login',
+        data: {'username': username, 'password': password},
+        options: Options(contentType: Headers.formUrlEncodedContentType),
+      );
+      final root = response.data;
+      if (root == null) {
+        throw const AuthException('服务器返回的数据格式不正确');
+      }
+
+      final errorCode = (root['errorCode'] as num?)?.toInt() ?? -1;
+      if (errorCode != 0) {
+        final message = root['errorMsg']?.toString().trim();
+        throw AuthException(
+          message == null || message.isEmpty ? '登录失败' : message,
+        );
+      }
+
+      final data = root['data'];
+      if (data is! Map<String, dynamic>) {
+        throw const AuthException('服务器返回的数据格式不正确');
+      }
+      return LoginUser.fromJson(data);
+    } on AuthException {
+      rethrow;
+    } on DioException catch (error) {
+      final statusCode = error.response?.statusCode;
+      if (statusCode != null) {
+        throw AuthException('登录请求失败（$statusCode）');
+      }
+      throw const AuthException('网络连接失败，请稍后重试');
+    } on FormatException {
+      throw const AuthException('服务器返回的数据无法解析');
+    }
+  }
+
+  @override
+  Future<LoginUser?> restoreSession() async {
+    final cookies = await _cookieJar.loadForRequest(
+      Uri.parse('$wanAndroidBaseUrl/'),
+    );
+    for (final name in const [
+      'loginUserName',
+      'loginUserName_wanandroid_com',
+    ]) {
+      for (final cookie in cookies) {
+        if (cookie.name == name && cookie.value.trim().isNotEmpty) {
+          return LoginUser(username: _decodeCookieValue(cookie.value));
+        }
+      }
+    }
+    return null;
+  }
+}
+
+Future<AuthRepository> createPersistentAuthRepository() async {
+  final supportDirectory = await getApplicationSupportDirectory();
+  final cookieDirectory = Directory(
+    '${supportDirectory.path}/wanandroid_cookies',
+  );
+  await cookieDirectory.create(recursive: true);
+  final cookieJar = PersistCookieJar(
+    storage: FileStorage(cookieDirectory.path),
+  );
+  await cookieJar.forceInit();
+  return AuthService(cookieJar: cookieJar);
+}
+
+String _decodeCookieValue(String value) {
+  try {
+    return Uri.decodeComponent(value);
+  } on FormatException {
+    return value;
+  }
+}
+
+class AuthException implements Exception {
+  const AuthException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
