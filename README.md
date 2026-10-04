@@ -16,7 +16,7 @@
 
 | 职责 | 技术 | 作用 |
 | --- | --- | --- |
-| 数据对象 | `json_serializable` | 自动生成 `fromJson`，减少手写映射 |
+| 数据对象 | `freezed` + `json_serializable` | 生成不可变对象、值相等、`copyWith` 和 `fromJson` |
 | 网络请求 | `Dio` | 统一配置域名、超时和网络异常 |
 | 状态管理 | `Riverpod AsyncNotifier` | 管理加载、成功、错误和刷新状态 |
 | 下拉刷新 | `RefreshIndicator` | Flutter 官方 Material 下拉刷新组件 |
@@ -26,15 +26,16 @@
 
 ## 适合初学者的阅读顺序
 
-1. `lib/models/article.dart`：学习 JSON 注解和展示属性。
-2. `lib/models/article.g.dart`：查看工具生成的字段映射，不要手动修改。
-3. `lib/services/article_service.dart`：学习 Dio、`async/await` 和异常转换。
-4. `lib/features/articles/article_list_controller.dart`：学习 Riverpod `AsyncNotifier`。
-5. `lib/features/articles/article_card.dart`：学习 StatelessWidget 和常用布局。
-6. `lib/features/articles/article_list_page.dart`：学习 ConsumerWidget、AsyncValue 和下拉刷新。
-7. `lib/main.dart`：查看 `ProviderScope`、应用入口和主题。
+1. `lib/models/article.dart`：学习 Freezed 工厂构造、JSON 注解和展示属性。
+2. `lib/models/article.freezed.dart`：查看工具生成的不可变对象、值相等和 `copyWith`，不要手动修改。
+3. `lib/models/article.g.dart`：查看 `json_serializable` 生成的字段映射，不要手动修改。
+4. `lib/services/article_service.dart`：学习 Dio、`async/await` 和异常转换。
+5. `lib/features/articles/article_list_controller.dart`：学习 Riverpod `AsyncNotifier`。
+6. `lib/features/articles/article_card.dart`：学习 StatelessWidget 和常用布局。
+7. `lib/features/articles/article_list_page.dart`：学习 ConsumerWidget、AsyncValue 和下拉刷新。
+8. `lib/main.dart`：查看 `ProviderScope`、应用入口和主题。
 
-修改带有 `@JsonSerializable()` 的模型后，重新生成代码：
+修改带有 `@Freezed()` 的模型后，重新生成 Freezed 和 JSON 代码：
 
 ```bash
 dart run build_runner build

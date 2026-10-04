@@ -6,7 +6,7 @@
 
 ## 技术选择
 
-- 数据对象使用 `json_serializable` 与 `build_runner` 生成 JSON 转换代码；展示作者和分类的业务组合逻辑保留为 getter。
+- 数据对象使用 `freezed`、`json_serializable` 与 `build_runner` 生成不可变对象、值相等、`copyWith` 和 JSON 转换代码；展示作者和分类的业务组合逻辑保留为 getter。
 - 网络请求使用单例配置思路的 `Dio`，通过 `BaseOptions` 统一设置 `baseUrl`、连接超时和接收超时。
 - 页面状态使用 Riverpod `AsyncNotifier`，由 `AsyncValue` 表达加载、成功和失败，UI 不再手动维护布尔值或调用 `setState`。
 - 下拉刷新继续使用 Flutter 官方 `RefreshIndicator`，其回调调用 Notifier 的 `refresh()`。

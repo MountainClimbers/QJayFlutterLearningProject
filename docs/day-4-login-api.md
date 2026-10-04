@@ -15,7 +15,7 @@
 
 ## 关键文件
 
-- `lib/models/login_user.dart`：登录用户数据对象，JSON 解析代码由 `json_serializable` 生成。
+- `lib/models/login_user.dart`：登录用户不可变数据对象，由 `freezed` 生成值相等和 `copyWith`，由 `json_serializable` 生成 JSON 解析。
 - `lib/services/wan_android_client.dart`：玩安卓共享网络客户端和超时设置。
 - `lib/services/auth_service.dart`：登录 POST 请求、业务错误转换和 Cookie 恢复。
 - `lib/services/secure_cookie_storage.dart`：把 Cookie 序列化结果写入系统安全存储。

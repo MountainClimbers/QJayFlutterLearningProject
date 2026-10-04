@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 将现有文章列表迁移到 json_serializable、Dio、Riverpod 和 RefreshIndicator 组合。
+**Goal:** 将现有文章列表迁移到 freezed、json_serializable、Dio、Riverpod 和 RefreshIndicator 组合。
 
 **Architecture:** 模型由代码生成器处理字段映射，Dio Repository 负责远程数据，Riverpod AsyncNotifier 负责加载与刷新状态，ConsumerWidget 只负责根据 AsyncValue 绘制界面。
 
-**Tech Stack:** Flutter 3.47、Dart 3.13、json_serializable、Dio、flutter_riverpod、Material 3
+**Tech Stack:** Flutter 3.47、Dart 3.13、freezed、json_serializable、Dio、flutter_riverpod、Material 3
 
 ## Global Constraints
 
@@ -22,11 +22,12 @@
 **Files:**
 - Modify: `pubspec.yaml`
 - Modify: `lib/models/article.dart`
+- Generate: `lib/models/article.freezed.dart`
 - Generate: `lib/models/article.g.dart`
 - Modify: `test/article_test.dart`
 
 **Interfaces:**
-- Produces: `Article.fromJson(Map<String, dynamic>)`、`Article.toJson()`、`displayAuthor`、`displayChapter`
+- Produces: `Article.fromJson(Map<String, dynamic>)`、值相等、`copyWith`、`displayAuthor`、`displayChapter`
 
 - [x] **Step 1: 更新模型测试，要求生成式字段映射和展示 getter**
 - [x] **Step 2: 运行模型测试并确认旧模型不满足新接口**

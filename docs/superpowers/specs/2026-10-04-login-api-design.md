@@ -17,7 +17,7 @@
 - `Dio` 发送 POST 表单。
 - `dio_cookie_manager` 把 Cookie 自动附加到请求并从响应保存 Cookie。
 - `PersistCookieJar` 管理 Cookie 规则，并通过 `flutter_secure_storage` 保存到系统安全存储，重启后仍可恢复。
-- `json_serializable` 生成登录用户的 JSON 映射。
+- `freezed` 生成不可变登录用户、值相等和 `copyWith`，`json_serializable` 生成 JSON 映射。
 - `Riverpod AsyncNotifier` 保存恢复中、未登录、登录中、登录成功和失败状态。
 
 ## 页面行为
