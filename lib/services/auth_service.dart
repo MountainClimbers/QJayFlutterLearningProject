@@ -1,11 +1,9 @@
-import 'dart:io';
-
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../models/login_user.dart';
+import 'secure_cookie_storage.dart';
 import 'wan_android_client.dart';
 
 abstract interface class AuthRepository {
@@ -103,13 +101,8 @@ class AuthService implements AuthRepository {
 }
 
 Future<AuthRepository> createPersistentAuthRepository() async {
-  final supportDirectory = await getApplicationSupportDirectory();
-  final cookieDirectory = Directory(
-    '${supportDirectory.path}/wanandroid_cookies',
-  );
-  await cookieDirectory.create(recursive: true);
   final cookieJar = PersistCookieJar(
-    storage: FileStorage(cookieDirectory.path),
+    storage: SecureCookieStorage(FlutterSecureKeyValueStore()),
   );
   await cookieJar.forceInit();
   return AuthService(cookieJar: cookieJar);
