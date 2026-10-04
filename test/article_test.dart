@@ -31,4 +31,21 @@ void main() {
     expect(article.title, isEmpty);
     expect(article.link, isEmpty);
   });
+
+  test('不可变文章模型支持值相等和复制修改', () {
+    const article = Article(
+      id: 42,
+      title: 'Flutter',
+      link: 'https://example.com/flutter',
+    );
+    const sameArticle = Article(
+      id: 42,
+      title: 'Flutter',
+      link: 'https://example.com/flutter',
+    );
+
+    expect(article, sameArticle);
+    expect(article.copyWith(title: 'Flutter 进阶').title, 'Flutter 进阶');
+    expect(article.title, 'Flutter');
+  });
 }

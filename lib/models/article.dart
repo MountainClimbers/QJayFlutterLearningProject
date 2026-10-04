@@ -1,50 +1,27 @@
 import 'package:html_unescape/html_unescape.dart';
-import 'package:json_annotation/json_annotation.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
+part 'article.freezed.dart';
 part 'article.g.dart';
 
-@JsonSerializable(createToJson: false)
-class Article {
-  const Article({
-    required this.id,
-    required this.title,
-    required this.link,
-    this.author = '',
-    this.shareUser = '',
-    this.superChapterName = '',
-    this.chapterName = '',
-    this.niceDate = '',
-    this.niceShareDate = '',
-  });
+@Freezed(toJson: false)
+abstract class Article with _$Article {
+  const Article._();
 
-  factory Article.fromJson(Map<String, dynamic> json) => _$ArticleFromJson(json);
+  const factory Article({
+    @JsonKey(fromJson: _intValue) required int id,
+    @JsonKey(fromJson: _plainText) required String title,
+    @JsonKey(fromJson: _stringValue) required String link,
+    @JsonKey(fromJson: _plainText) @Default('') String author,
+    @JsonKey(fromJson: _plainText) @Default('') String shareUser,
+    @JsonKey(fromJson: _plainText) @Default('') String superChapterName,
+    @JsonKey(fromJson: _plainText) @Default('') String chapterName,
+    @JsonKey(fromJson: _plainText) @Default('') String niceDate,
+    @JsonKey(fromJson: _plainText) @Default('') String niceShareDate,
+  }) = _Article;
 
-  @JsonKey(fromJson: _intValue)
-  final int id;
-
-  @JsonKey(fromJson: _plainText)
-  final String title;
-
-  @JsonKey(fromJson: _stringValue)
-  final String link;
-
-  @JsonKey(fromJson: _plainText)
-  final String author;
-
-  @JsonKey(fromJson: _plainText)
-  final String shareUser;
-
-  @JsonKey(fromJson: _plainText)
-  final String superChapterName;
-
-  @JsonKey(fromJson: _plainText)
-  final String chapterName;
-
-  @JsonKey(fromJson: _plainText)
-  final String niceDate;
-
-  @JsonKey(fromJson: _plainText)
-  final String niceShareDate;
+  factory Article.fromJson(Map<String, dynamic> json) =>
+      _$ArticleFromJson(json);
 
   String get displayAuthor => author.isNotEmpty ? author : shareUser;
 
