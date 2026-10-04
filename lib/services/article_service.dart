@@ -1,10 +1,7 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
-import 'package:flutter/foundation.dart';
 
 import '../models/article.dart';
+import 'wan_android_client.dart';
 
 /// 状态层只依赖这个接口，因此测试和未来的本地缓存都能替换网络实现。
 abstract interface class ArticleRepository {
@@ -13,9 +10,9 @@ abstract interface class ArticleRepository {
 
 /// 使用 Dio 统一管理服务地址、超时与网络异常。
 class ArticleService implements ArticleRepository {
-  ArticleService({Dio? dio}) : _dio = dio ?? createArticleDio() {
+  ArticleService({Dio? dio}) : _dio = dio ?? createWanAndroidDio() {
     _dio.options
-      ..baseUrl = 'https://www.wanandroid.com'
+      ..baseUrl = wanAndroidBaseUrl
       ..connectTimeout = const Duration(seconds: 10)
       ..receiveTimeout = const Duration(seconds: 10);
   }
@@ -66,27 +63,6 @@ class ArticleService implements ArticleRepository {
       throw const ArticleLoadException('服务器返回的数据无法解析');
     }
   }
-}
-
-/// 允许测试直接验证 Dio 适配器与原生证书回调的接线。
-@visibleForTesting
-Dio createArticleDio({
-  bool debugMode = kDebugMode,
-  HttpClient Function()? createHttpClient,
-}) {
-  final dio = Dio();
-  if (kDebugMode && debugMode) {
-    dio.httpClientAdapter = IOHttpClientAdapter(
-      createHttpClient: () {
-        final client = (createHttpClient ?? HttpClient.new)();
-        client.badCertificateCallback = (certificate, host, port) {
-          return host == 'www.wanandroid.com' && port == 443;
-        };
-        return client;
-      },
-    );
-  }
-  return dio;
 }
 
 class ArticleLoadException implements Exception {
