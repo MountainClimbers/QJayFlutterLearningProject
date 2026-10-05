@@ -19,7 +19,7 @@ final authControllerProvider =
 /// 管理应用范围内的登录用户，以及登录过程中加载和错误状态。
 class AuthController extends AsyncNotifier<LoginUser?> {
   final Completer<void> _initialRestoreCompleted = Completer<void>();
-  int _latestLoginOperation = 0;
+  Future<void> _authenticationQueue = Future<void>.value();
 
   @override
   Future<LoginUser?> build() async {
@@ -36,47 +36,50 @@ class AuthController extends AsyncNotifier<LoginUser?> {
   Future<LoginUser> login({
     required String username,
     required String password,
-  }) async {
-    await _initialRestoreCompleted.future;
-    final operation = ++_latestLoginOperation;
-    state = const AsyncLoading<LoginUser?>();
-    try {
-      final repository = await ref.read(authRepositoryProvider.future);
-      final user = await repository.login(
-        username: username,
-        password: password,
-      );
-      if (operation == _latestLoginOperation) {
+  }) {
+    return _runSerialized(() async {
+      await _initialRestoreCompleted.future;
+      state = const AsyncLoading<LoginUser?>();
+      try {
+        final repository = await ref.read(authRepositoryProvider.future);
+        final user = await repository.login(
+          username: username,
+          password: password,
+        );
         state = AsyncData(user);
-      }
-      return user;
-    } catch (error, stackTrace) {
-      if (operation == _latestLoginOperation) {
+        return user;
+      } catch (error, stackTrace) {
         state = AsyncError(error, stackTrace);
+        rethrow;
       }
-      rethrow;
-    }
+    });
   }
 
-  Future<void> logout() async {
-    await _initialRestoreCompleted.future;
-    final operation = ++_latestLoginOperation;
-    final previousUser = switch (state) {
-      AsyncData(:final value) => value,
-      _ => null,
-    };
-    state = const AsyncLoading<LoginUser?>();
-    try {
-      final repository = await ref.read(authRepositoryProvider.future);
-      await repository.logout();
-      if (operation == _latestLoginOperation) {
+  Future<void> logout() {
+    return _runSerialized(() async {
+      await _initialRestoreCompleted.future;
+      state = const AsyncLoading<LoginUser?>();
+      try {
+        final repository = await ref.read(authRepositoryProvider.future);
+        await repository.logout();
         state = const AsyncData<LoginUser?>(null);
+      } catch (_) {
+        // 退出请求和本地 Cookie 清理无法一起回滚，失败后也不能继续显示已登录。
+        state = const AsyncData<LoginUser?>(null);
+        rethrow;
       }
-    } catch (error) {
-      if (operation == _latestLoginOperation) {
-        state = AsyncData(previousUser);
+    });
+  }
+
+  Future<T> _runSerialized<T>(Future<T> Function() operation) {
+    final result = Completer<T>();
+    _authenticationQueue = _authenticationQueue.then((_) async {
+      try {
+        result.complete(await operation());
+      } catch (error, stackTrace) {
+        result.completeError(error, stackTrace);
       }
-      rethrow;
-    }
+    });
+    return result.future;
   }
 }

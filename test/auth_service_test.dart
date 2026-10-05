@@ -246,7 +246,7 @@ void main() {
     );
   });
 
-  test('退出接口返回业务错误时保留本地登录状态', () async {
+  test('退出接口返回业务错误时仍清理本地登录状态', () async {
     final cookieJar = CookieJar();
     await cookieJar.saveFromResponse(Uri.parse(wanAndroidBaseUrl), [
       Cookie('loginUserName', 'MountainClimbers')..path = '/',
@@ -269,9 +269,46 @@ void main() {
     );
     expect(
       await cookieJar.loadForRequest(Uri.parse(wanAndroidBaseUrl)),
-      isNotEmpty,
+      isEmpty,
     );
   });
+
+  test('本地登录状态清理失败时返回明确错误', () async {
+    final dio = _stubDio(
+      (_) => _jsonResponse({'errorCode': 0, 'errorMsg': '', 'data': null}),
+    );
+    final service = AuthService(dio: dio, cookieJar: _FailingDeleteCookieJar());
+
+    await expectLater(
+      service.logout(),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          '本地登录凭证清理失败，请重新登录',
+        ),
+      ),
+    );
+  });
+}
+
+class _FailingDeleteCookieJar implements CookieJar {
+  @override
+  final bool ignoreExpires = false;
+
+  @override
+  Future<void> delete(Uri uri, [bool withDomainSharedCookie = false]) async {}
+
+  @override
+  Future<void> deleteAll() async {
+    throw StateError('测试安全存储删除失败');
+  }
+
+  @override
+  Future<List<Cookie>> loadForRequest(Uri uri) async => [];
+
+  @override
+  Future<void> saveFromResponse(Uri uri, List<Cookie> cookies) async {}
 }
 
 Dio _stubDio(ResponseBody Function(RequestOptions options) handler) {

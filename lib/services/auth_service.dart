@@ -107,6 +107,30 @@ class AuthService implements AuthRepository {
 
   @override
   Future<void> logout() async {
+    Object? requestError;
+    StackTrace? requestStackTrace;
+    try {
+      await _requestRemoteLogout();
+    } catch (error, stackTrace) {
+      requestError = error;
+      requestStackTrace = stackTrace;
+    }
+
+    try {
+      await _cookieJar.deleteAll();
+    } catch (_, stackTrace) {
+      Error.throwWithStackTrace(
+        const AuthException('本地登录凭证清理失败，请重新登录'),
+        stackTrace,
+      );
+    }
+
+    if (requestError != null) {
+      Error.throwWithStackTrace(requestError, requestStackTrace!);
+    }
+  }
+
+  Future<void> _requestRemoteLogout() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         '/user/logout/json',
@@ -126,7 +150,6 @@ class AuthService implements AuthRepository {
           message == null || message.isEmpty ? '退出登录失败' : message,
         );
       }
-      await _cookieJar.deleteAll();
     } on AuthException {
       rethrow;
     } on DioException catch (error) {

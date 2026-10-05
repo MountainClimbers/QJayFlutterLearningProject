@@ -73,32 +73,67 @@ void main() {
     expect(container.read(authControllerProvider).value, loggedInUser);
   });
 
-  test('多个登录请求只允许最后开始的请求更新状态', () async {
-    final firstCompleter = Completer<LoginUser>();
-    final secondCompleter = Completer<LoginUser>();
+  test('先登录后退出时，退出等待登录完成并最终清空用户', () async {
+    final loginCompleter = Completer<LoginUser>();
     final repository = _FakeAuthRepository(
-      loginHandler: (username, _) =>
-          username == 'first' ? firstCompleter.future : secondCompleter.future,
+      loginHandler: (_, _) => loginCompleter.future,
     );
     final container = _createContainer(repository);
     addTearDown(container.dispose);
     await container.read(authControllerProvider.future);
 
-    final firstLogin = container
+    final loginFuture = container
         .read(authControllerProvider.notifier)
-        .login(username: 'first', password: '123456');
-    final secondLogin = container
+        .login(username: 'new-user', password: '123456');
+    await Future<void>.delayed(Duration.zero);
+    final logoutFuture = container
         .read(authControllerProvider.notifier)
-        .login(username: 'second', password: '123456');
-    const secondUser = LoginUser(id: 2, username: 'second');
-    secondCompleter.complete(secondUser);
-    expect(await secondLogin, secondUser);
-    expect(container.read(authControllerProvider).value, secondUser);
+        .logout();
+    await Future<void>.delayed(Duration.zero);
 
-    const firstUser = LoginUser(id: 1, username: 'first');
-    firstCompleter.complete(firstUser);
-    expect(await firstLogin, firstUser);
-    expect(container.read(authControllerProvider).value, secondUser);
+    expect(repository.loginCallCount, 1);
+    expect(repository.logoutCallCount, 0);
+
+    const loggedInUser = LoginUser(id: 1, username: 'new-user');
+    loginCompleter.complete(loggedInUser);
+    expect(await loginFuture, loggedInUser);
+    await logoutFuture;
+
+    expect(repository.logoutCallCount, 1);
+    expect(container.read(authControllerProvider).value, isNull);
+  });
+
+  test('先退出后登录时，登录等待退出完成并最终保存新用户', () async {
+    final logoutCompleter = Completer<void>();
+    const restoredUser = LoginUser(id: 7, username: 'old-user');
+    const loggedInUser = LoginUser(id: 8, username: 'new-user');
+    final repository = _FakeAuthRepository(
+      restoredUser: restoredUser,
+      loginResult: loggedInUser,
+      logoutHandler: () => logoutCompleter.future,
+    );
+    final container = _createContainer(repository);
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    final logoutFuture = container
+        .read(authControllerProvider.notifier)
+        .logout();
+    await Future<void>.delayed(Duration.zero);
+    final loginFuture = container
+        .read(authControllerProvider.notifier)
+        .login(username: 'new-user', password: '123456');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(repository.logoutCallCount, 1);
+    expect(repository.loginCallCount, 0);
+
+    logoutCompleter.complete();
+    await logoutFuture;
+    expect(await loginFuture, loggedInUser);
+
+    expect(repository.loginCallCount, 1);
+    expect(container.read(authControllerProvider).value, loggedInUser);
   });
 
   test('退出成功后把全局用户状态改为未登录', () async {
@@ -114,7 +149,7 @@ void main() {
     expect(container.read(authControllerProvider).value, isNull);
   });
 
-  test('退出失败时保留原用户并继续抛出异常', () async {
+  test('退出失败时清空界面用户并继续抛出异常', () async {
     const restoredUser = LoginUser(id: 7, username: 'MountainClimbers');
     const exception = AuthException('退出失败');
     final repository = _FakeAuthRepository(
@@ -130,7 +165,7 @@ void main() {
       throwsA(exception),
     );
 
-    expect(container.read(authControllerProvider).value, restoredUser);
+    expect(container.read(authControllerProvider).value, isNull);
   });
 }
 
@@ -149,6 +184,7 @@ class _FakeAuthRepository implements AuthRepository {
     this.loginError,
     this.restoreHandler,
     this.loginHandler,
+    this.logoutHandler,
     this.logoutError,
   });
 
@@ -158,6 +194,7 @@ class _FakeAuthRepository implements AuthRepository {
   final Future<LoginUser?> Function()? restoreHandler;
   final Future<LoginUser> Function(String username, String password)?
   loginHandler;
+  final Future<void> Function()? logoutHandler;
   final Object? logoutError;
   String? lastUsername;
   String? lastPassword;
@@ -186,6 +223,7 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<void> logout() async {
     logoutCallCount += 1;
+    if (logoutHandler case final handler?) await handler();
     if (logoutError case final Object error) throw error;
   }
 }
