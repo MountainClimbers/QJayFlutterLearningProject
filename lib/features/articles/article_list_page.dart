@@ -96,16 +96,24 @@ class ArticleListPage extends ConsumerWidget {
   }
 
   Future<void> _openAccount(BuildContext context, LoginUser currentUser) async {
-    final didLogout = await showModalBottomSheet<bool>(
+    final feedback = await showModalBottomSheet<_LogoutFeedback>(
       context: context,
       showDragHandle: true,
+      isDismissible: false,
+      enableDrag: false,
       builder: (_) => _AccountSheet(user: currentUser),
     );
-    if (didLogout == true && context.mounted) {
+    if (feedback != null && context.mounted) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('已退出登录')));
+          .showSnackBar(SnackBar(content: Text(feedback.message)));
     }
   }
+}
+
+class _LogoutFeedback {
+  const _LogoutFeedback(this.message);
+
+  final String message;
 }
 
 class _CurrentUserView extends StatelessWidget {
@@ -145,58 +153,76 @@ class _AccountSheet extends ConsumerWidget {
     final authState = ref.watch(authControllerProvider);
     final isLoggingOut = authState is AsyncLoading<LoginUser?>;
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.account_circle, size: 64),
-            const SizedBox(height: 12),
-            Text(
-              '账户信息',
-              style: Theme.of(context).textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.bold),
+    return PopScope(
+      canPop: !isLoggingOut,
+      child: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: IconButton(
+                    key: const ValueKey('account-close-button'),
+                    tooltip: '关闭账户面板',
+                    onPressed: isLoggingOut
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+                const Icon(Icons.account_circle, size: 64),
+                const SizedBox(height: 12),
+                Text(
+                  '账户信息',
+                  style: Theme.of(context).textTheme.titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(user.displayName),
+                if (user.username.isNotEmpty &&
+                    user.username != user.displayName)
+                  Text(
+                    user.username,
+                    key: const ValueKey('account-username'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.tonalIcon(
+                    key: const ValueKey('logout-button'),
+                    onPressed: isLoggingOut
+                        ? null
+                        : () => _logout(context, ref),
+                    icon: isLoggingOut
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.logout),
+                    label: Text(isLoggingOut ? '正在退出' : '退出登录'),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
-            Text(user.displayName),
-            if (user.username.isNotEmpty && user.username != user.displayName)
-              Text(
-                user.username,
-                key: const ValueKey('account-username'),
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.tonalIcon(
-                key: const ValueKey('logout-button'),
-                onPressed: isLoggingOut ? null : () => _logout(context, ref),
-                icon: isLoggingOut
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.logout),
-                label: Text(isLoggingOut ? '正在退出' : '退出登录'),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   Future<void> _logout(BuildContext context, WidgetRef ref) async {
+    late final _LogoutFeedback feedback;
     try {
       await ref.read(authControllerProvider.notifier).logout();
-      if (context.mounted) Navigator.of(context).pop(true);
+      feedback = const _LogoutFeedback('已退出登录');
     } catch (error) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text(error.toString())));
+      feedback = _LogoutFeedback('登录状态已重置：$error');
     }
+    if (context.mounted) Navigator.of(context).pop(feedback);
   }
 }
 

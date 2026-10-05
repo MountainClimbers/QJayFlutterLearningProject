@@ -168,7 +168,7 @@ void main() {
     expect(find.text('账户信息'), findsNothing);
   });
 
-  testWidgets('账户面板退出失败时保留用户并显示原因', (tester) async {
+  testWidgets('账户面板退出失败时重置登录状态并显示原因', (tester) async {
     final repository = _SequenceRepository([
       () async => [firstArticle],
     ]);
@@ -186,9 +186,41 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('logout-button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('测试退出失败'), findsOneWidget);
+    expect(find.textContaining('测试退出失败'), findsOneWidget);
+    expect(find.text('账户信息'), findsNothing);
+    expect(find.byTooltip('登录'), findsOneWidget);
+  });
+
+  testWidgets('退出请求期间不能关闭账户面板且完成后仍有反馈', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+    final logoutCompleter = Completer<void>();
+    final authRepository = _FakeAuthRepository(
+      restoredUser: const LoginUser(id: 7, username: 'MountainClimbers'),
+      logoutHandler: () => logoutCompleter.future,
+    );
+    await tester.pumpWidget(
+      _testApp(repository, authRepository: authRepository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('account-action')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('logout-button')));
+    await tester.pump();
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+
     expect(find.text('账户信息'), findsOneWidget);
-    expect(find.byTooltip('已登录：MountainClimbers'), findsOneWidget);
+    expect(find.text('正在退出'), findsOneWidget);
+
+    logoutCompleter.completeError(const AuthException('测试网络中断'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('账户信息'), findsNothing);
+    expect(find.textContaining('测试网络中断'), findsOneWidget);
+    expect(find.byTooltip('登录'), findsOneWidget);
   });
 
   testWidgets('恢复登录状态期间暂时禁用登录入口', (tester) async {
@@ -340,12 +372,14 @@ class _FakeAuthRepository implements AuthRepository {
     this.restoredUser,
     this.loginResult,
     this.restoreHandler,
+    this.logoutHandler,
     this.logoutError,
   });
 
   final LoginUser? restoredUser;
   final LoginUser? loginResult;
   final Future<LoginUser?> Function()? restoreHandler;
+  final Future<void> Function()? logoutHandler;
   final Object? logoutError;
   String? lastUsername;
   String? lastPassword;
@@ -370,6 +404,7 @@ class _FakeAuthRepository implements AuthRepository {
   @override
   Future<void> logout() async {
     logoutCallCount += 1;
+    if (logoutHandler case final handler?) await handler();
     if (logoutError case final Object error) throw error;
   }
 }
