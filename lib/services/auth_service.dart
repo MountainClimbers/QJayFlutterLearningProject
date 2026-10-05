@@ -10,6 +10,8 @@ abstract interface class AuthRepository {
   Future<LoginUser> login({required String username, required String password});
 
   Future<LoginUser?> restoreSession();
+
+  Future<void> logout();
 }
 
 class AuthService implements AuthRepository {
@@ -101,6 +103,44 @@ class AuthService implements AuthRepository {
     return username != null && hasAuthToken
         ? LoginUser(username: username)
         : null;
+  }
+
+  @override
+  Future<void> logout() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/user/logout/json',
+      );
+      final root = response.data;
+      if (root == null) {
+        throw const AuthException('服务器返回的数据格式不正确');
+      }
+
+      final rawErrorCode = root['errorCode'];
+      if (rawErrorCode is! num) {
+        throw const AuthException('服务器返回的数据无法解析');
+      }
+      if (rawErrorCode.toInt() != 0) {
+        final message = root['errorMsg']?.toString().trim();
+        throw AuthException(
+          message == null || message.isEmpty ? '退出登录失败' : message,
+        );
+      }
+      await _cookieJar.deleteAll();
+    } on AuthException {
+      rethrow;
+    } on DioException catch (error) {
+      if (error.error is FormatException) {
+        throw const AuthException('服务器返回的数据无法解析');
+      }
+      final statusCode = error.response?.statusCode;
+      if (statusCode != null) {
+        throw AuthException('退出请求失败（$statusCode）');
+      }
+      throw const AuthException('网络连接失败，请稍后重试');
+    } on FormatException {
+      throw const AuthException('服务器返回的数据无法解析');
+    }
   }
 }
 

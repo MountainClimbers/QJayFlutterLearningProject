@@ -224,6 +224,54 @@ void main() {
 
     expect(await service.restoreSession(), isNull);
   });
+
+  test('退出登录请求正确接口并清理 Cookie', () async {
+    final cookieJar = CookieJar();
+    await cookieJar.saveFromResponse(Uri.parse(wanAndroidBaseUrl), [
+      Cookie('loginUserName', 'MountainClimbers')..path = '/',
+      Cookie('token_pass', 'test_token')..path = '/',
+    ]);
+    final dio = _stubDio((options) {
+      expect(options.method, 'GET');
+      expect(options.uri.toString(), '$wanAndroidBaseUrl/user/logout/json');
+      return _jsonResponse({'errorCode': 0, 'errorMsg': '', 'data': null});
+    });
+    final service = AuthService(dio: dio, cookieJar: cookieJar);
+
+    await service.logout();
+
+    expect(
+      await cookieJar.loadForRequest(Uri.parse(wanAndroidBaseUrl)),
+      isEmpty,
+    );
+  });
+
+  test('退出接口返回业务错误时保留本地登录状态', () async {
+    final cookieJar = CookieJar();
+    await cookieJar.saveFromResponse(Uri.parse(wanAndroidBaseUrl), [
+      Cookie('loginUserName', 'MountainClimbers')..path = '/',
+      Cookie('token_pass', 'test_token')..path = '/',
+    ]);
+    final dio = _stubDio(
+      (_) => _jsonResponse({'errorCode': -1, 'errorMsg': '退出失败', 'data': null}),
+    );
+    final service = AuthService(dio: dio, cookieJar: cookieJar);
+
+    await expectLater(
+      service.logout(),
+      throwsA(
+        isA<AuthException>().having(
+          (error) => error.message,
+          'message',
+          '退出失败',
+        ),
+      ),
+    );
+    expect(
+      await cookieJar.loadForRequest(Uri.parse(wanAndroidBaseUrl)),
+      isNotEmpty,
+    );
+  });
 }
 
 Dio _stubDio(ResponseBody Function(RequestOptions options) handler) {
