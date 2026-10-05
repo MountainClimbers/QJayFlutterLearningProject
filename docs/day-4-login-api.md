@@ -31,9 +31,9 @@
 
 服务器登录成功后通过响应头设置 Cookie。`dio_cookie_manager` 负责在请求与响应之间自动传递 Cookie，`PersistCookieJar` 负责 Cookie 的过期和域名规则，`flutter_secure_storage` 把序列化结果保存到 iOS Keychain 或 Android Keystore 支持的安全存储中。应用启动时必须同时读取到用户名和认证令牌 Cookie 才恢复用户，缺少任意一个都保持未登录。
 
-启动恢复与登录请求会按顺序执行，多个登录请求发生重叠时只有最后开始的请求可以更新全局状态，避免旧结果覆盖新用户。
+启动恢复、登录与退出请求会按调用顺序执行，避免多个认证请求交叉修改 Cookie 和全局用户状态。
 
-第 5 天已经补充退出登录：退出接口成功后清理 Cookie，并把 `AuthController` 改回未登录状态。
+第 5 天已经补充退出登录：退出请求完成后始终尝试清理本地 Cookie，并把 `AuthController` 改回未登录状态；远端失败时也会展示原因。
 
 ## 错误处理
 

@@ -16,8 +16,9 @@
 
 - 沿用 Flutter `Navigator` 与 `MaterialPageRoute` 完成列表、详情和登录页面导航。
 - 沿用 Riverpod `AuthController` 保存全局登录状态，账户面板只触发退出动作。
-- `AuthService` 请求 `GET /user/logout/json`，成功后清理持久化 Cookie。
-- 退出期间展示加载状态，阻止重复操作；失败时保留用户状态并给出提示。
+- `AuthService` 请求 `GET /user/logout/json`，并在请求完成后始终尝试清理持久化 Cookie。
+- 登录与退出通过异步队列串行执行，避免多个认证请求交叉修改同一个 Cookie 容器。
+- 退出期间展示加载状态并阻止关闭面板；失败时重置界面登录状态并给出提示。
 - Widget 测试通过 Provider override 注入假仓库，验证跨页面状态变化。
 
 ## 范围
