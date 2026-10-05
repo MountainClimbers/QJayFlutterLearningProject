@@ -2,7 +2,7 @@
 
 这是一个面向 iOS 面试准备的 Flutter 学习项目，参考 WanAndroid 项目逐步实现文章列表、文章详情和登录功能。
 
-## 第一天：文章列表
+## 五天学习成果
 
 当前已经完成：
 
@@ -10,6 +10,10 @@
 - 解析文章标题、作者、分类和时间；
 - 展示加载、空数据和失败状态；
 - 支持失败重试和下拉刷新；
+- 点击文章进入 WebView 详情页；
+- 登录、Cookie 持久化和启动状态恢复；
+- 账户面板与退出登录；
+- 页面导航与全局状态共享；
 - 使用单元测试和 Widget 测试保护主要逻辑。
 
 ## 项目技术栈
@@ -20,6 +24,8 @@
 | 网络请求 | `Dio` | 统一配置域名、超时和网络异常 |
 | 状态管理 | `Riverpod AsyncNotifier` | 管理加载、成功、错误和刷新状态 |
 | 下拉刷新 | `RefreshIndicator` | Flutter 官方 Material 下拉刷新组件 |
+| 登录凭证 | `PersistCookieJar` + `flutter_secure_storage` | 管理 Cookie 并写入系统安全存储 |
+| 页面导航 | `Navigator` + `MaterialPageRoute` | 在列表、详情和登录页面之间传递数据 |
 | 页面 UI | `ConsumerWidget` + Material 3 | 监听 Provider 并根据 `AsyncValue` 绘制页面 |
 
 接口地址：`https://www.wanandroid.com/article/list/0/json`
@@ -33,7 +39,9 @@
 5. `lib/features/articles/article_list_controller.dart`：学习 Riverpod `AsyncNotifier`。
 6. `lib/features/articles/article_card.dart`：学习 StatelessWidget 和常用布局。
 7. `lib/features/articles/article_list_page.dart`：学习 ConsumerWidget、AsyncValue 和下拉刷新。
-8. `lib/main.dart`：查看 `ProviderScope`、应用入口和主题。
+8. `lib/features/auth/auth_controller.dart`：学习登录恢复、登录、退出和并发保护。
+9. `test/app_flow_test.dart`：查看页面导航和全局状态共享的完整测试。
+10. `lib/main.dart`：查看 `ProviderScope`、应用入口和主题。
 
 修改带有 `@Freezed()` 的模型后，重新生成 Freezed 和 JSON 代码：
 
@@ -43,13 +51,13 @@ dart run build_runner build
 
 ## 五天学习安排
 
-| 天数 | 目标 | 重点知识 |
-| --- | --- | --- |
-| 第 1 天 | 文章列表 | HTTP、JSON、ListView、加载与错误状态 |
-| 第 2 天 | 文章详情 | 路由跳转、参数传递、WebView |
-| 第 3 天 | 登录页面 | 表单、输入校验、密码框 |
-| 第 4 天 | 接入登录接口 | POST、Cookie、登录状态 |
-| 第 5 天 | 串联与复习 | 页面导航、状态共享、面试题整理 |
+| 天数 | 目标 | 重点知识 | 状态 |
+| --- | --- | --- | --- |
+| 第 1 天 | 文章列表 | HTTP、JSON、ListView、加载与错误状态 | 已完成 |
+| 第 2 天 | 文章详情 | 路由跳转、参数传递、WebView | 已完成 |
+| 第 3 天 | 登录页面 | 表单、输入校验、密码框 | 已完成 |
+| 第 4 天 | 接入登录接口 | POST、Cookie、登录状态 | 已完成 |
+| 第 5 天 | 串联与复习 | 页面导航、状态共享、退出登录、面试题整理 | 已完成 |
 
 ## 命令行运行
 
