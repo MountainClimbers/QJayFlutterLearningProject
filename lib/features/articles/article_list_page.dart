@@ -54,7 +54,10 @@ class ArticleListPage extends ConsumerWidget {
               icon: const Icon(Icons.login),
             )
           else
-            _CurrentUserView(user: currentUser),
+            _CurrentUserView(
+              user: currentUser,
+              onPressed: () => _openAccount(context, currentUser),
+            ),
         ],
       ),
       body: switch (articles) {
@@ -91,36 +94,109 @@ class ArticleListPage extends ConsumerWidget {
           .showSnackBar(SnackBar(content: Text('登录成功：${user.displayName}')));
     }
   }
+
+  Future<void> _openAccount(BuildContext context, LoginUser currentUser) async {
+    final didLogout = await showModalBottomSheet<bool>(
+      context: context,
+      showDragHandle: true,
+      builder: (_) => _AccountSheet(user: currentUser),
+    );
+    if (didLogout == true && context.mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('已退出登录')));
+    }
+  }
 }
 
 class _CurrentUserView extends StatelessWidget {
-  const _CurrentUserView({required this.user});
+  const _CurrentUserView({required this.user, required this.onPressed});
 
   final LoginUser user;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
     return Tooltip(
       message: '已登录：${user.displayName}',
+      child: TextButton.icon(
+        key: const ValueKey('account-action'),
+        onPressed: onPressed,
+        icon: const Icon(Icons.account_circle_outlined),
+        label: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 120),
+          child: Text(
+            user.displayName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountSheet extends ConsumerWidget {
+  const _AccountSheet({required this.user});
+
+  final LoginUser user;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
+    final isLoggingOut = authState is AsyncLoading<LoginUser?>;
+
+    return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.only(right: 16),
-        child: Row(
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.account_circle_outlined),
-            const SizedBox(width: 6),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 120),
-              child: Text(
-                user.displayName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            const Icon(Icons.account_circle, size: 64),
+            const SizedBox(height: 12),
+            Text(
+              '账户信息',
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(user.displayName),
+            if (user.username.isNotEmpty && user.username != user.displayName)
+              Text(
+                user.username,
+                key: const ValueKey('account-username'),
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.tonalIcon(
+                key: const ValueKey('logout-button'),
+                onPressed: isLoggingOut ? null : () => _logout(context, ref),
+                icon: isLoggingOut
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.logout),
+                label: Text(isLoggingOut ? '正在退出' : '退出登录'),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _logout(BuildContext context, WidgetRef ref) async {
+    try {
+      await ref.read(authControllerProvider.notifier).logout();
+      if (context.mounted) Navigator.of(context).pop(true);
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.toString())));
+    }
   }
 }
 

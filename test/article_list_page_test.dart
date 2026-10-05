@@ -117,6 +117,80 @@ void main() {
     expect(find.byTooltip('登录'), findsNothing);
   });
 
+  testWidgets('点击当前用户后展示账户面板', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+
+    await tester.pumpWidget(
+      _testApp(
+        repository,
+        authRepository: _FakeAuthRepository(
+          restoredUser: const LoginUser(
+            id: 7,
+            username: 'MountainClimbers',
+            nickname: '山友',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('account-action')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('账户信息'), findsOneWidget);
+    expect(find.text('山友'), findsWidgets);
+    expect(find.byKey(const ValueKey('account-username')), findsOneWidget);
+    expect(find.text('退出登录'), findsOneWidget);
+  });
+
+  testWidgets('账户面板退出成功后首页恢复登录入口', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+    final authRepository = _FakeAuthRepository(
+      restoredUser: const LoginUser(id: 7, username: 'MountainClimbers'),
+    );
+    await tester.pumpWidget(
+      _testApp(repository, authRepository: authRepository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('account-action')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('logout-button')));
+    await tester.pumpAndSettle();
+
+    expect(authRepository.logoutCallCount, 1);
+    expect(find.byTooltip('登录'), findsOneWidget);
+    expect(find.text('已退出登录'), findsOneWidget);
+    expect(find.text('账户信息'), findsNothing);
+  });
+
+  testWidgets('账户面板退出失败时保留用户并显示原因', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+    final authRepository = _FakeAuthRepository(
+      restoredUser: const LoginUser(id: 7, username: 'MountainClimbers'),
+      logoutError: const AuthException('测试退出失败'),
+    );
+    await tester.pumpWidget(
+      _testApp(repository, authRepository: authRepository),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('account-action')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('logout-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('测试退出失败'), findsOneWidget);
+    expect(find.text('账户信息'), findsOneWidget);
+    expect(find.byTooltip('已登录：MountainClimbers'), findsOneWidget);
+  });
+
   testWidgets('恢复登录状态期间暂时禁用登录入口', (tester) async {
     final repository = _SequenceRepository([
       () async => [firstArticle],
@@ -266,13 +340,16 @@ class _FakeAuthRepository implements AuthRepository {
     this.restoredUser,
     this.loginResult,
     this.restoreHandler,
+    this.logoutError,
   });
 
   final LoginUser? restoredUser;
   final LoginUser? loginResult;
   final Future<LoginUser?> Function()? restoreHandler;
+  final Object? logoutError;
   String? lastUsername;
   String? lastPassword;
+  int logoutCallCount = 0;
 
   @override
   Future<LoginUser> login({
@@ -291,5 +368,8 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> logout() async {}
+  Future<void> logout() async {
+    logoutCallCount += 1;
+    if (logoutError case final Object error) throw error;
+  }
 }
