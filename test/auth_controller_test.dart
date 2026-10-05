@@ -100,6 +100,38 @@ void main() {
     expect(await firstLogin, firstUser);
     expect(container.read(authControllerProvider).value, secondUser);
   });
+
+  test('退出成功后把全局用户状态改为未登录', () async {
+    const restoredUser = LoginUser(id: 7, username: 'MountainClimbers');
+    final repository = _FakeAuthRepository(restoredUser: restoredUser);
+    final container = _createContainer(repository);
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    await container.read(authControllerProvider.notifier).logout();
+
+    expect(repository.logoutCallCount, 1);
+    expect(container.read(authControllerProvider).value, isNull);
+  });
+
+  test('退出失败时保留原用户并继续抛出异常', () async {
+    const restoredUser = LoginUser(id: 7, username: 'MountainClimbers');
+    const exception = AuthException('退出失败');
+    final repository = _FakeAuthRepository(
+      restoredUser: restoredUser,
+      logoutError: exception,
+    );
+    final container = _createContainer(repository);
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    await expectLater(
+      container.read(authControllerProvider.notifier).logout(),
+      throwsA(exception),
+    );
+
+    expect(container.read(authControllerProvider).value, restoredUser);
+  });
 }
 
 ProviderContainer _createContainer(AuthRepository repository) {
@@ -117,6 +149,7 @@ class _FakeAuthRepository implements AuthRepository {
     this.loginError,
     this.restoreHandler,
     this.loginHandler,
+    this.logoutError,
   });
 
   final LoginUser? restoredUser;
@@ -125,9 +158,11 @@ class _FakeAuthRepository implements AuthRepository {
   final Future<LoginUser?> Function()? restoreHandler;
   final Future<LoginUser> Function(String username, String password)?
   loginHandler;
+  final Object? logoutError;
   String? lastUsername;
   String? lastPassword;
   int loginCallCount = 0;
+  int logoutCallCount = 0;
 
   @override
   Future<LoginUser> login({
@@ -146,5 +181,11 @@ class _FakeAuthRepository implements AuthRepository {
   Future<LoginUser?> restoreSession() async {
     if (restoreHandler case final handler?) return handler();
     return restoredUser;
+  }
+
+  @override
+  Future<void> logout() async {
+    logoutCallCount += 1;
+    if (logoutError case final Object error) throw error;
   }
 }

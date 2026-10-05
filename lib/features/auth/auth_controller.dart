@@ -57,4 +57,26 @@ class AuthController extends AsyncNotifier<LoginUser?> {
       rethrow;
     }
   }
+
+  Future<void> logout() async {
+    await _initialRestoreCompleted.future;
+    final operation = ++_latestLoginOperation;
+    final previousUser = switch (state) {
+      AsyncData(:final value) => value,
+      _ => null,
+    };
+    state = const AsyncLoading<LoginUser?>();
+    try {
+      final repository = await ref.read(authRepositoryProvider.future);
+      await repository.logout();
+      if (operation == _latestLoginOperation) {
+        state = const AsyncData<LoginUser?>(null);
+      }
+    } catch (error) {
+      if (operation == _latestLoginOperation) {
+        state = AsyncData(previousUser);
+      }
+      rethrow;
+    }
+  }
 }

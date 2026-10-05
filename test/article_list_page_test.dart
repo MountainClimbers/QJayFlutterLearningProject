@@ -289,4 +289,7 @@ class _FakeAuthRepository implements AuthRepository {
     if (restoreHandler case final handler?) return handler();
     return restoredUser;
   }
+
+  @override
+  Future<void> logout() async {}
 }
