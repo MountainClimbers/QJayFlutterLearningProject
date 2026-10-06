@@ -255,25 +255,25 @@ git commit -m "功能：文章列表支持登录态收藏"
 - Consumes: `collectionControllerProvider`、`authControllerProvider`、文章详情导航。
 - Produces: 登录提示、收藏列表、刷新、取消收藏和详情入口。
 
-- [ ] **Step 1: 编写页面失败测试**
+- [x] **Step 1: 编写页面失败测试**
 
 覆盖未登录提示和去登录、加载/空/错误状态、展示收藏数据、取消后移除、刷新失败保留列表。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `flutter test test/collection_page_test.dart`
 Expected: FAIL，CollectionPage 尚不存在。
 
-- [ ] **Step 3: 实现收藏页面**
+- [x] **Step 3: 实现收藏页面**
 
 页面监听认证和收藏 AsyncValue；列表复用 ArticleCard；从收藏页取消时传 `fromCollection: true`，成功后从当前列表删除记录。
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `flutter test test/collection_page_test.dart`
 Expected: PASS。
 
-- [ ] **Step 5: 中文提交**
+- [x] **Step 5: 中文提交**
 
 ```bash
 git commit -m "功能：增加我的收藏列表页面"
