@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/article.dart';
+import '../../models/article_page.dart';
 import '../../models/login_user.dart';
 import '../../services/collection_service.dart';
 import '../../services/session_client.dart';
@@ -35,12 +36,16 @@ class CollectionController extends Notifier<CollectionState> {
     };
     if (user == null) {
       _resetForAuthenticationChange();
-      return const CollectionState();
+      return const CollectionState(hasMore: false);
     }
 
     final identity = _identityOf(user);
     _resetForAuthenticationChange();
-    Future<void>.microtask(() => _load(identity)).ignore();
+    final identityEpoch = _identityEpoch;
+    final requestGeneration = _requestGeneration;
+    Future<void>.microtask(
+      () => _loadInitialPage(identity, identityEpoch, requestGeneration),
+    ).ignore();
     return CollectionState(identity: identity, isLoading: true);
   }
 
@@ -84,14 +89,18 @@ class CollectionController extends Notifier<CollectionState> {
       if (!_isCurrentIdentity(identity, identityEpoch)) return;
       final nextCollected = fromCollection ? false : !wasCollected;
       final confirmed = {...state.confirmed, key: nextCollected};
-      final articles = nextCollected
-          ? state.articles
-          : state.articles
-                .where((item) => _key(item, fromCollection: true) != key)
+      final pages = nextCollected
+          ? state.pages
+          : state.pages
+                .map(
+                  (page) => page
+                      .where((item) => _key(item, fromCollection: true) != key)
+                      .toList(growable: false),
+                )
                 .toList(growable: false);
       final mutationVersion = ++_mutationVersion;
       _mutationVersions[key] = mutationVersion;
-      state = state.copyWith(articles: articles, confirmed: confirmed);
+      state = state.copyWith(pages: pages, confirmed: confirmed);
       if (!fromCollection && !wasCollected) {
         _needsServerRecordRefresh = true;
         _latestCollectionMutationVersion = mutationVersion;
@@ -108,14 +117,76 @@ class CollectionController extends Notifier<CollectionState> {
     }
   }
 
+  Future<void> loadNextPage() async {
+    final identity = state.identity;
+    if (identity == null || state.isLoading || !state.hasMore) return;
+    final identityEpoch = _identityEpoch;
+    final requestGeneration = _requestGeneration;
+    final mutationVersionAtStart = _mutationVersion;
+    final page = state.nextPage;
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final result = await ref
+          .read(collectionRepositoryProvider)
+          .fetchCollections(page: page);
+      if (!_isCurrentRequest(identity, identityEpoch, requestGeneration)) {
+        return;
+      }
+      _applyPage(
+        result,
+        requestedPage: page,
+        replace: false,
+        mutationVersionAtStart: mutationVersionAtStart,
+      );
+    } on CollectionAuthenticationException {
+      if (_isCurrentRequest(identity, identityEpoch, requestGeneration)) {
+        await _expireSession(identity, identityEpoch);
+      }
+    } catch (error) {
+      if (_isCurrentRequest(identity, identityEpoch, requestGeneration)) {
+        state = state.copyWith(isLoading: false, error: error);
+      }
+    }
+  }
+
   Future<String?> refresh() async {
     final identity = state.identity;
     if (identity == null) return '请先登录';
-    state = state.copyWith(isRefreshing: true, errorMessage: null);
+    final identityEpoch = _identityEpoch;
+    final requestGeneration = ++_requestGeneration;
+    final mutationVersionAtStart = _mutationVersion;
+    state = state.copyWith(
+      isRefreshing: true,
+      isLoading: state.pages.isEmpty,
+      error: null,
+    );
     try {
-      await _load(identity, showLoading: false);
+      final result = await ref
+          .read(collectionRepositoryProvider)
+          .fetchCollections(page: 0);
+      if (!_isCurrentRequest(identity, identityEpoch, requestGeneration)) {
+        return null;
+      }
+      _applyPage(
+        result,
+        requestedPage: 0,
+        replace: true,
+        mutationVersionAtStart: mutationVersionAtStart,
+      );
       return null;
+    } on CollectionAuthenticationException catch (error) {
+      if (_isCurrentRequest(identity, identityEpoch, requestGeneration)) {
+        await _expireSession(identity, identityEpoch);
+      }
+      return error.toString();
     } catch (error) {
+      if (_isCurrentRequest(identity, identityEpoch, requestGeneration)) {
+        state = state.copyWith(
+          isLoading: false,
+          isRefreshing: false,
+          error: state.pages.isEmpty ? error : null,
+        );
+      }
       return error.toString();
     }
   }
@@ -137,69 +208,111 @@ class CollectionController extends Notifier<CollectionState> {
     return refresh();
   }
 
-  Future<void> _load(String identity, {bool showLoading = true}) async {
-    if (state.identity != identity) return;
-    final requestGeneration = ++_requestGeneration;
+  Future<void> _loadInitialPage(
+    String identity,
+    int identityEpoch,
+    int requestGeneration,
+  ) async {
+    if (!_isCurrentRequest(identity, identityEpoch, requestGeneration)) return;
     final mutationVersionAtStart = _mutationVersion;
-    if (showLoading && !state.isLoading) {
-      state = state.copyWith(isLoading: true, errorMessage: null);
-    }
     try {
-      final records = await ref
+      final result = await ref
           .read(collectionRepositoryProvider)
-          .fetchCollections(page: 0)
-          .then((page) => page.datas);
-      if (!_isCurrentRequest(identity, requestGeneration)) return;
-      final serverKeys = <String>{
-        for (final record in records) _key(record, fromCollection: true),
-      };
-      final confirmed = <String, bool>{
-        for (final key in {...state.confirmed.keys, ...serverKeys})
-          key: serverKeys.contains(key),
-        for (final entry in state.confirmed.entries)
-          if ((_mutationVersions[entry.key] ?? 0) > mutationVersionAtStart)
-            entry.key: entry.value,
-      };
-      final visibleRecords = records
-          .where(
-            (record) => confirmed[_key(record, fromCollection: true)] != false,
-          )
-          .toList(growable: false);
-      state = state.copyWith(
-        articles: visibleRecords,
-        confirmed: confirmed,
-        isLoading: false,
-        isRefreshing: false,
-        errorMessage: null,
+          .fetchCollections(page: 0);
+      if (!_isCurrentRequest(identity, identityEpoch, requestGeneration)) {
+        return;
+      }
+      _applyPage(
+        result,
+        requestedPage: 0,
+        replace: true,
+        mutationVersionAtStart: mutationVersionAtStart,
       );
-      _mutationVersions.removeWhere(
-        (key, version) => version <= mutationVersionAtStart,
-      );
-      _needsServerRecordRefresh =
-          _latestCollectionMutationVersion > mutationVersionAtStart;
     } on CollectionAuthenticationException {
-      if (!_isCurrentRequest(identity, requestGeneration)) return;
-      await _expireSession(identity, _identityEpoch);
-      rethrow;
+      if (_isCurrentRequest(identity, identityEpoch, requestGeneration)) {
+        await _expireSession(identity, identityEpoch);
+      }
     } catch (error) {
-      if (_isCurrentRequest(identity, requestGeneration)) {
+      if (_isCurrentRequest(identity, identityEpoch, requestGeneration)) {
         state = state.copyWith(
           isLoading: false,
           isRefreshing: false,
-          errorMessage: error.toString(),
+          error: error,
         );
-        rethrow;
       }
     }
   }
 
-  bool _isCurrentRequest(String identity, int requestGeneration) {
-    return state.identity == identity &&
+  void _applyPage(
+    ArticlePage result, {
+    required int requestedPage,
+    required bool replace,
+    required int mutationVersionAtStart,
+  }) {
+    final serverKeys = <String>{
+      for (final record in result.datas) _key(record, fromCollection: true),
+    };
+    final confirmed = replace && !result.hasMore
+        ? <String, bool>{
+            for (final key in {...state.confirmed.keys, ...serverKeys})
+              key: serverKeys.contains(key),
+          }
+        : <String, bool>{...state.confirmed};
+    for (final key in serverKeys) {
+      confirmed[key] = true;
+    }
+    for (final entry in state.confirmed.entries) {
+      if ((_mutationVersions[entry.key] ?? 0) > mutationVersionAtStart) {
+        confirmed[entry.key] = entry.value;
+      }
+    }
+
+    final knownKeys = replace
+        ? <String>{}
+        : state.articles
+              .map((record) => _key(record, fromCollection: true))
+              .toSet();
+    final visibleRecords = <Article>[];
+    for (final record in result.datas) {
+      final key = _key(record, fromCollection: true);
+      if (confirmed[key] != false && knownKeys.add(key)) {
+        visibleRecords.add(record);
+      }
+    }
+
+    state = state.copyWith(
+      pages: replace ? [visibleRecords] : [...state.pages, visibleRecords],
+      nextPage: requestedPage + 1,
+      hasMore: result.hasMore,
+      confirmed: confirmed,
+      isLoading: false,
+      isRefreshing: false,
+      error: null,
+    );
+    _mutationVersions.removeWhere(
+      (key, version) => version <= mutationVersionAtStart,
+    );
+    if (replace) {
+      _needsServerRecordRefresh =
+          _latestCollectionMutationVersion > mutationVersionAtStart;
+    }
+  }
+
+  bool _isCurrentRequest(
+    String identity,
+    int identityEpoch,
+    int requestGeneration,
+  ) {
+    return ref.mounted &&
+        state.identity == identity &&
+        identityEpoch == _identityEpoch &&
         requestGeneration == _requestGeneration;
   }
 
   bool _isCurrentIdentity(String identity, int identityEpoch) {
-    return state.identity == identity && identityEpoch == _identityEpoch;
+    return ref.mounted &&
+        state.identity == identity &&
+        identityEpoch == _identityEpoch;
   }
 
   Future<void> _expireSession(String identity, int identityEpoch) async {

@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$CollectionState {
 
- String? get identity; List<Article> get articles; Map<String, bool> get confirmed; Set<String> get busyKeys; bool get isLoading; bool get isRefreshing; String? get errorMessage;
+ String? get identity; List<List<Article>> get pages; int get nextPage; bool get hasMore; Map<String, bool> get confirmed; Set<String> get busyKeys; bool get isLoading; bool get isRefreshing; Object? get error;
 /// Create a copy of CollectionState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,20 +27,20 @@ $CollectionStateCopyWith<CollectionState> get copyWith => _$CollectionStateCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as CollectionState;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CollectionState&&(identical(other.identity, _this.identity) || other.identity == _this.identity)&&const DeepCollectionEquality().equals(other.articles, _this.articles)&&const DeepCollectionEquality().equals(other.confirmed, _this.confirmed)&&const DeepCollectionEquality().equals(other.busyKeys, _this.busyKeys)&&(identical(other.isLoading, _this.isLoading) || other.isLoading == _this.isLoading)&&(identical(other.isRefreshing, _this.isRefreshing) || other.isRefreshing == _this.isRefreshing)&&(identical(other.errorMessage, _this.errorMessage) || other.errorMessage == _this.errorMessage));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CollectionState&&(identical(other.identity, _this.identity) || other.identity == _this.identity)&&const DeepCollectionEquality().equals(other.pages, _this.pages)&&(identical(other.nextPage, _this.nextPage) || other.nextPage == _this.nextPage)&&(identical(other.hasMore, _this.hasMore) || other.hasMore == _this.hasMore)&&const DeepCollectionEquality().equals(other.confirmed, _this.confirmed)&&const DeepCollectionEquality().equals(other.busyKeys, _this.busyKeys)&&(identical(other.isLoading, _this.isLoading) || other.isLoading == _this.isLoading)&&(identical(other.isRefreshing, _this.isRefreshing) || other.isRefreshing == _this.isRefreshing)&&const DeepCollectionEquality().equals(other.error, _this.error));
 }
 
 
 @override
 int get hashCode {
   final _this = this as CollectionState;
-  return Object.hash(runtimeType,_this.identity,const DeepCollectionEquality().hash(_this.articles),const DeepCollectionEquality().hash(_this.confirmed),const DeepCollectionEquality().hash(_this.busyKeys),_this.isLoading,_this.isRefreshing,_this.errorMessage);
+  return Object.hash(runtimeType,_this.identity,const DeepCollectionEquality().hash(_this.pages),_this.nextPage,_this.hasMore,const DeepCollectionEquality().hash(_this.confirmed),const DeepCollectionEquality().hash(_this.busyKeys),_this.isLoading,_this.isRefreshing,const DeepCollectionEquality().hash(_this.error));
 }
 
 @override
 String toString() {
   final _this = this as CollectionState;
-  return 'CollectionState(identity: ${_this.identity}, articles: ${_this.articles}, confirmed: ${_this.confirmed}, busyKeys: ${_this.busyKeys}, isLoading: ${_this.isLoading}, isRefreshing: ${_this.isRefreshing}, errorMessage: ${_this.errorMessage})';
+  return 'CollectionState(identity: ${_this.identity}, pages: ${_this.pages}, nextPage: ${_this.nextPage}, hasMore: ${_this.hasMore}, confirmed: ${_this.confirmed}, busyKeys: ${_this.busyKeys}, isLoading: ${_this.isLoading}, isRefreshing: ${_this.isRefreshing}, error: ${_this.error})';
 }
 
 
@@ -51,7 +51,7 @@ abstract mixin class $CollectionStateCopyWith<$Res>  {
   factory $CollectionStateCopyWith(CollectionState value, $Res Function(CollectionState) _then) = _$CollectionStateCopyWithImpl;
 @useResult
 $Res call({
- String? identity, List<Article> articles, Map<String, bool> confirmed, Set<String> busyKeys, bool isLoading, bool isRefreshing, String? errorMessage
+ String? identity, List<List<Article>> pages, int nextPage, bool hasMore, Map<String, bool> confirmed, Set<String> busyKeys, bool isLoading, bool isRefreshing, Object? error
 });
 
 
@@ -68,16 +68,17 @@ class _$CollectionStateCopyWithImpl<$Res>
 
 /// Create a copy of CollectionState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? identity = freezed,Object? articles = null,Object? confirmed = null,Object? busyKeys = null,Object? isLoading = null,Object? isRefreshing = null,Object? errorMessage = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? identity = freezed,Object? pages = null,Object? nextPage = null,Object? hasMore = null,Object? confirmed = null,Object? busyKeys = null,Object? isLoading = null,Object? isRefreshing = null,Object? error = freezed,}) {
   return _then(CollectionState(
 identity: freezed == identity ? _self.identity : identity // ignore: cast_nullable_to_non_nullable
-as String?,articles: null == articles ? _self.articles : articles // ignore: cast_nullable_to_non_nullable
-as List<Article>,confirmed: null == confirmed ? _self.confirmed : confirmed // ignore: cast_nullable_to_non_nullable
+as String?,pages: null == pages ? _self.pages : pages // ignore: cast_nullable_to_non_nullable
+as List<List<Article>>,nextPage: null == nextPage ? _self.nextPage : nextPage // ignore: cast_nullable_to_non_nullable
+as int,hasMore: null == hasMore ? _self.hasMore : hasMore // ignore: cast_nullable_to_non_nullable
+as bool,confirmed: null == confirmed ? _self.confirmed : confirmed // ignore: cast_nullable_to_non_nullable
 as Map<String, bool>,busyKeys: null == busyKeys ? _self.busyKeys : busyKeys // ignore: cast_nullable_to_non_nullable
 as Set<String>,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
 as bool,isRefreshing: null == isRefreshing ? _self.isRefreshing : isRefreshing // ignore: cast_nullable_to_non_nullable
-as bool,errorMessage: freezed == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
-as String?,
+as bool,error: freezed == error ? _self.error : error ,
   ));
 }
 
@@ -162,10 +163,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? identity,  List<Article> articles,  Map<String, bool> confirmed,  Set<String> busyKeys,  bool isLoading,  bool isRefreshing,  String? errorMessage)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String? identity,  List<List<Article>> pages,  int nextPage,  bool hasMore,  Map<String, bool> confirmed,  Set<String> busyKeys,  bool isLoading,  bool isRefreshing,  Object? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CollectionState() when $default != null:
-return $default(_that.identity,_that.articles,_that.confirmed,_that.busyKeys,_that.isLoading,_that.isRefreshing,_that.errorMessage);case _:
+return $default(_that.identity,_that.pages,_that.nextPage,_that.hasMore,_that.confirmed,_that.busyKeys,_that.isLoading,_that.isRefreshing,_that.error);case _:
   return orElse();
 
 }
@@ -183,10 +184,10 @@ return $default(_that.identity,_that.articles,_that.confirmed,_that.busyKeys,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? identity,  List<Article> articles,  Map<String, bool> confirmed,  Set<String> busyKeys,  bool isLoading,  bool isRefreshing,  String? errorMessage)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String? identity,  List<List<Article>> pages,  int nextPage,  bool hasMore,  Map<String, bool> confirmed,  Set<String> busyKeys,  bool isLoading,  bool isRefreshing,  Object? error)  $default,) {final _that = this;
 switch (_that) {
 case _CollectionState():
-return $default(_that.identity,_that.articles,_that.confirmed,_that.busyKeys,_that.isLoading,_that.isRefreshing,_that.errorMessage);case _:
+return $default(_that.identity,_that.pages,_that.nextPage,_that.hasMore,_that.confirmed,_that.busyKeys,_that.isLoading,_that.isRefreshing,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -203,10 +204,10 @@ return $default(_that.identity,_that.articles,_that.confirmed,_that.busyKeys,_th
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? identity,  List<Article> articles,  Map<String, bool> confirmed,  Set<String> busyKeys,  bool isLoading,  bool isRefreshing,  String? errorMessage)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String? identity,  List<List<Article>> pages,  int nextPage,  bool hasMore,  Map<String, bool> confirmed,  Set<String> busyKeys,  bool isLoading,  bool isRefreshing,  Object? error)?  $default,) {final _that = this;
 switch (_that) {
 case _CollectionState() when $default != null:
-return $default(_that.identity,_that.articles,_that.confirmed,_that.busyKeys,_that.isLoading,_that.isRefreshing,_that.errorMessage);case _:
+return $default(_that.identity,_that.pages,_that.nextPage,_that.hasMore,_that.confirmed,_that.busyKeys,_that.isLoading,_that.isRefreshing,_that.error);case _:
   return null;
 
 }
@@ -217,18 +218,20 @@ return $default(_that.identity,_that.articles,_that.confirmed,_that.busyKeys,_th
 /// @nodoc
 
 
-class _CollectionState implements CollectionState {
-  const _CollectionState({this.identity,  List<Article> articles = const <Article>[],  Map<String, bool> confirmed = const <String, bool>{},  Set<String> busyKeys = const <String>{}, this.isLoading = false, this.isRefreshing = false, this.errorMessage}): _articles = articles,_confirmed = confirmed,_busyKeys = busyKeys;
+class _CollectionState extends CollectionState {
+  const _CollectionState({this.identity,  List<List<Article>> pages = const <List<Article>>[], this.nextPage = 0, this.hasMore = true,  Map<String, bool> confirmed = const <String, bool>{},  Set<String> busyKeys = const <String>{}, this.isLoading = false, this.isRefreshing = false, this.error}): _pages = pages,_confirmed = confirmed,_busyKeys = busyKeys,super._();
 
 
 @override final  String? identity;
- final  List<Article> _articles;
-@override@JsonKey() List<Article> get articles {
-  if (_articles is EqualUnmodifiableListView) return _articles;
+ final  List<List<Article>> _pages;
+@override@JsonKey() List<List<Article>> get pages {
+  if (_pages is EqualUnmodifiableListView) return _pages;
   // ignore: implicit_dynamic_type
-  return EqualUnmodifiableListView(_articles);
+  return EqualUnmodifiableListView(_pages);
 }
 
+@override@JsonKey() final  int nextPage;
+@override@JsonKey() final  bool hasMore;
  final  Map<String, bool> _confirmed;
 @override@JsonKey() Map<String, bool> get confirmed {
   if (_confirmed is EqualUnmodifiableMapView) return _confirmed;
@@ -245,7 +248,7 @@ class _CollectionState implements CollectionState {
 
 @override@JsonKey() final  bool isLoading;
 @override@JsonKey() final  bool isRefreshing;
-@override final  String? errorMessage;
+@override final  Object? error;
 
 /// Create a copy of CollectionState
 /// with the given fields replaced by the non-null parameter values.
@@ -257,18 +260,18 @@ _$CollectionStateCopyWith<_CollectionState> get copyWith => __$CollectionStateCo
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CollectionState&&(identical(other.identity, identity) || other.identity == identity)&&const DeepCollectionEquality().equals(other.articles, _articles)&&const DeepCollectionEquality().equals(other.confirmed, _confirmed)&&const DeepCollectionEquality().equals(other.busyKeys, _busyKeys)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.isRefreshing, isRefreshing) || other.isRefreshing == isRefreshing)&&(identical(other.errorMessage, errorMessage) || other.errorMessage == errorMessage));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CollectionState&&(identical(other.identity, identity) || other.identity == identity)&&const DeepCollectionEquality().equals(other.pages, _pages)&&(identical(other.nextPage, nextPage) || other.nextPage == nextPage)&&(identical(other.hasMore, hasMore) || other.hasMore == hasMore)&&const DeepCollectionEquality().equals(other.confirmed, _confirmed)&&const DeepCollectionEquality().equals(other.busyKeys, _busyKeys)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.isRefreshing, isRefreshing) || other.isRefreshing == isRefreshing)&&const DeepCollectionEquality().equals(other.error, error));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,identity,const DeepCollectionEquality().hash(_articles),const DeepCollectionEquality().hash(_confirmed),const DeepCollectionEquality().hash(_busyKeys),isLoading,isRefreshing,errorMessage);
+    return Object.hash(runtimeType,identity,const DeepCollectionEquality().hash(_pages),nextPage,hasMore,const DeepCollectionEquality().hash(_confirmed),const DeepCollectionEquality().hash(_busyKeys),isLoading,isRefreshing,const DeepCollectionEquality().hash(error));
 }
 
 @override
 String toString() {
-    return 'CollectionState(identity: $identity, articles: $articles, confirmed: $confirmed, busyKeys: $busyKeys, isLoading: $isLoading, isRefreshing: $isRefreshing, errorMessage: $errorMessage)';
+    return 'CollectionState(identity: $identity, pages: $pages, nextPage: $nextPage, hasMore: $hasMore, confirmed: $confirmed, busyKeys: $busyKeys, isLoading: $isLoading, isRefreshing: $isRefreshing, error: $error)';
 }
 
 
@@ -279,7 +282,7 @@ abstract mixin class _$CollectionStateCopyWith<$Res> implements $CollectionState
   factory _$CollectionStateCopyWith(_CollectionState value, $Res Function(_CollectionState) _then) = __$CollectionStateCopyWithImpl;
 @override @useResult
 $Res call({
- String? identity, List<Article> articles, Map<String, bool> confirmed, Set<String> busyKeys, bool isLoading, bool isRefreshing, String? errorMessage
+ String? identity, List<List<Article>> pages, int nextPage, bool hasMore, Map<String, bool> confirmed, Set<String> busyKeys, bool isLoading, bool isRefreshing, Object? error
 });
 
 
@@ -296,16 +299,17 @@ class __$CollectionStateCopyWithImpl<$Res>
 
 /// Create a copy of CollectionState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? identity = freezed,Object? articles = null,Object? confirmed = null,Object? busyKeys = null,Object? isLoading = null,Object? isRefreshing = null,Object? errorMessage = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? identity = freezed,Object? pages = null,Object? nextPage = null,Object? hasMore = null,Object? confirmed = null,Object? busyKeys = null,Object? isLoading = null,Object? isRefreshing = null,Object? error = freezed,}) {
   return _then(_CollectionState(
 identity: freezed == identity ? _self.identity : identity // ignore: cast_nullable_to_non_nullable
-as String?,articles: null == articles ? _self._articles : articles // ignore: cast_nullable_to_non_nullable
-as List<Article>,confirmed: null == confirmed ? _self._confirmed : confirmed // ignore: cast_nullable_to_non_nullable
+as String?,pages: null == pages ? _self._pages : pages // ignore: cast_nullable_to_non_nullable
+as List<List<Article>>,nextPage: null == nextPage ? _self.nextPage : nextPage // ignore: cast_nullable_to_non_nullable
+as int,hasMore: null == hasMore ? _self.hasMore : hasMore // ignore: cast_nullable_to_non_nullable
+as bool,confirmed: null == confirmed ? _self._confirmed : confirmed // ignore: cast_nullable_to_non_nullable
 as Map<String, bool>,busyKeys: null == busyKeys ? _self._busyKeys : busyKeys // ignore: cast_nullable_to_non_nullable
 as Set<String>,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
 as bool,isRefreshing: null == isRefreshing ? _self.isRefreshing : isRefreshing // ignore: cast_nullable_to_non_nullable
-as bool,errorMessage: freezed == errorMessage ? _self.errorMessage : errorMessage // ignore: cast_nullable_to_non_nullable
-as String?,
+as bool,error: freezed == error ? _self.error : error ,
   ));
 }
 

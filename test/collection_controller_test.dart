@@ -30,6 +30,13 @@ void main() {
     link: 'https://example.com/88',
     collected: true,
   );
+  const duplicateCollectionRecord = Article(
+    id: 990,
+    originId: 42,
+    title: '重复收藏文章',
+    link: 'https://example.com/42',
+    collected: true,
+  );
 
   test('登录后加载收藏记录并同步普通文章图标', () async {
     final repository = _FakeCollectionRepository(
@@ -368,6 +375,136 @@ void main() {
     expect(container.read(collectionControllerProvider).articles, isEmpty);
     expect(controller.isCollected(regularArticle), isFalse);
   });
+
+  test('收藏列表追加下一页并按原文章编号去重', () async {
+    final repository = _FakeCollectionRepository(
+      pageHandler: (page, callCount) async => page == 0
+          ? _collectionPage([collectionRecord], page: 0, hasMore: true)
+          : _collectionPage(
+              [duplicateCollectionRecord, newAccountRecord],
+              page: 1,
+              hasMore: false,
+            ),
+    );
+    final container = await _createContainer(repository);
+    addTearDown(container.dispose);
+    await _waitForCollections(container);
+
+    await container.read(collectionControllerProvider.notifier).loadNextPage();
+
+    final state = container.read(collectionControllerProvider);
+    expect(repository.requestedPages, [0, 1]);
+    expect(repository.requestedPageSizes, [10, 10]);
+    expect(state.articles, [collectionRecord, newAccountRecord]);
+    expect(state.hasMore, isFalse);
+  });
+
+  test('收藏下一页失败时保留数据并重试同一页', () async {
+    var secondPageAttempts = 0;
+    final repository = _FakeCollectionRepository(
+      pageHandler: (page, callCount) async {
+        if (page == 0) {
+          return _collectionPage([collectionRecord], page: 0, hasMore: true);
+        }
+        secondPageAttempts += 1;
+        if (secondPageAttempts == 1) {
+          throw const CollectionException('收藏下一页失败');
+        }
+        return _collectionPage([newAccountRecord], page: 1, hasMore: false);
+      },
+    );
+    final container = await _createContainer(repository);
+    addTearDown(container.dispose);
+    await _waitForCollections(container);
+    final controller = container.read(collectionControllerProvider.notifier);
+
+    await controller.loadNextPage();
+    var state = container.read(collectionControllerProvider);
+    expect(state.articles, [collectionRecord]);
+    expect(state.error.toString(), '收藏下一页失败');
+    expect(state.nextPage, 1);
+
+    await controller.loadNextPage();
+    state = container.read(collectionControllerProvider);
+    expect(repository.requestedPages, [0, 1, 1]);
+    expect(state.articles, [collectionRecord, newAccountRecord]);
+    expect(state.error, isNull);
+  });
+
+  test('收藏列表没有更多数据时不再请求接口', () async {
+    final repository = _FakeCollectionRepository(
+      pageHandler: (page, callCount) async =>
+          _collectionPage([collectionRecord], page: 0, hasMore: false),
+    );
+    final container = await _createContainer(repository);
+    addTearDown(container.dispose);
+    await _waitForCollections(container);
+
+    await container.read(collectionControllerProvider.notifier).loadNextPage();
+
+    expect(repository.requestedPages, [0]);
+  });
+
+  test('刷新收藏列表后旧的下一页响应不能写回状态', () async {
+    final oldSecondPage = Completer<ArticlePage>();
+    var firstPageRequests = 0;
+    final repository = _FakeCollectionRepository(
+      pageHandler: (page, callCount) async {
+        if (page == 1) return oldSecondPage.future;
+        firstPageRequests += 1;
+        return firstPageRequests == 1
+            ? _collectionPage([collectionRecord], page: 0, hasMore: true)
+            : _collectionPage([newAccountRecord], page: 0, hasMore: false);
+      },
+    );
+    final container = await _createContainer(repository);
+    addTearDown(container.dispose);
+    await _waitForCollections(container);
+    final controller = container.read(collectionControllerProvider.notifier);
+
+    final loadingMore = controller.loadNextPage();
+    await Future<void>.delayed(Duration.zero);
+    expect(container.read(collectionControllerProvider).isLoading, isTrue);
+
+    expect(await controller.refresh(), isNull);
+    oldSecondPage.complete(
+      _collectionPage([duplicateCollectionRecord], page: 1, hasMore: false),
+    );
+    await loadingMore;
+
+    expect(container.read(collectionControllerProvider).articles, [
+      newAccountRecord,
+    ]);
+  });
+
+  test('下一页请求期间取消收藏不会被旧响应恢复', () async {
+    final secondPage = Completer<ArticlePage>();
+    final repository = _FakeCollectionRepository(
+      pageHandler: (page, callCount) async => page == 0
+          ? _collectionPage([collectionRecord], page: 0, hasMore: true)
+          : secondPage.future,
+    );
+    final container = await _createContainer(repository);
+    addTearDown(container.dispose);
+    await _waitForCollections(container);
+    final controller = container.read(collectionControllerProvider.notifier);
+
+    final loadingMore = controller.loadNextPage();
+    await Future<void>.delayed(Duration.zero);
+    await controller.toggle(collectionRecord, fromCollection: true);
+    secondPage.complete(
+      _collectionPage(
+        [duplicateCollectionRecord, newAccountRecord],
+        page: 1,
+        hasMore: false,
+      ),
+    );
+    await loadingMore;
+
+    final state = container.read(collectionControllerProvider);
+    expect(state.articles, [newAccountRecord]);
+    expect(controller.isCollected(regularArticle), isFalse);
+  });
 }
 
 Future<ProviderContainer> _createContainer(
@@ -396,20 +533,37 @@ Future<void> _waitForCollections(ProviderContainer container) async {
   fail('收藏列表未在预期时间内完成加载');
 }
 
+ArticlePage _collectionPage(
+  List<Article> articles, {
+  required int page,
+  required bool hasMore,
+}) {
+  return ArticlePage(
+    datas: articles,
+    curPage: page + 1,
+    pageCount: hasMore ? page + 2 : page + 1,
+    over: !hasMore,
+  );
+}
+
 class _FakeCollectionRepository implements CollectionRepository {
   _FakeCollectionRepository({
     this.collections = const [],
     this.collectHandler,
     this.collectError,
     this.fetchHandler,
+    this.pageHandler,
   });
 
   List<Article> collections;
   final Future<void> Function(int articleId)? collectHandler;
   final Object? collectError;
   final Future<List<Article>> Function(int callCount)? fetchHandler;
+  final Future<ArticlePage> Function(int page, int callCount)? pageHandler;
   int collectCallCount = 0;
   int fetchCallCount = 0;
+  final List<int> requestedPages = [];
+  final List<int> requestedPageSizes = [];
   int? lastRemovedRecordId;
   int? lastRemovedOriginId;
 
@@ -426,6 +580,11 @@ class _FakeCollectionRepository implements CollectionRepository {
     int pageSize = wanAndroidPageSize,
   }) async {
     fetchCallCount += 1;
+    requestedPages.add(page);
+    requestedPageSizes.add(pageSize);
+    if (pageHandler case final handler?) {
+      return handler(page, fetchCallCount);
+    }
     final handler = fetchHandler;
     final records = handler == null
         ? collections

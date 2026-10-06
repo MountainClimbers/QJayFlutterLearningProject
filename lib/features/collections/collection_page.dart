@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 import '../../models/article.dart';
 import '../../models/login_user.dart';
 import '../../router/route_names.dart';
 import '../articles/article_card.dart';
 import '../auth/auth_controller.dart';
+import '../shared/paging_views.dart';
 import 'collection_controller.dart';
 
 typedef CollectionArticleDetailPageBuilder = Widget Function(Article article);
@@ -91,59 +93,52 @@ class _CollectionBody extends ConsumerWidget {
     final state = ref.watch(collectionControllerProvider);
     final controller = ref.read(collectionControllerProvider.notifier);
 
-    if (state.isLoading && state.articles.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (state.errorMessage case final String message
-        when state.articles.isEmpty) {
-      return _CollectionErrorView(
-        message: message,
-        onRetry: () => _refresh(context, ref),
-      );
-    }
-
     return RefreshIndicator(
       onRefresh: () => _refresh(context, ref),
-      child: state.articles.isEmpty
-          ? ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [
-                SizedBox(height: 180),
-                Icon(Icons.bookmark_border, size: 52),
-                SizedBox(height: 12),
-                Center(child: Text('还没有收藏文章')),
-              ],
-            )
-          : ListView.builder(
-              key: const PageStorageKey('collection-list'),
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(top: 8, bottom: 24),
-              itemCount: state.articles.length,
-              itemBuilder: (context, index) {
-                final article = state.articles[index];
-                return ArticleCard(
-                  article: article,
-                  collected: controller.isCollected(
-                    article,
-                    fromCollection: true,
-                  ),
-                  busy: controller.isBusy(article, fromCollection: true),
-                  onCollect: () => _remove(context, ref, article),
-                  onTap: () {
-                    final customBuilder = articleDetailPageBuilder;
-                    if (customBuilder != null) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => customBuilder(article),
-                        ),
-                      );
-                    } else {
-                      context.pushNamed(articleDetailRouteName, extra: article);
-                    }
-                  },
-                );
+      child: PagedListView<int, Article>(
+        key: const PageStorageKey('collection-list'),
+        state: state.pagingState,
+        fetchNextPage: controller.loadNextPage,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(top: 8, bottom: 24),
+        builderDelegate: PagedChildBuilderDelegate<Article>(
+          invisibleItemsThreshold: 3,
+          firstPageProgressIndicatorBuilder: (_) =>
+              const Center(child: CircularProgressIndicator()),
+          firstPageErrorIndicatorBuilder: (_) => PagingFirstPageErrorView(
+            message: state.errorMessage ?? '收藏列表加载失败',
+            onRetry: controller.loadNextPage,
+          ),
+          noItemsFoundIndicatorBuilder: (_) => const PagingEmptyView(
+            icon: Icons.bookmark_border,
+            message: '还没有收藏文章',
+          ),
+          newPageProgressIndicatorBuilder: (_) => const PagingProgressView(),
+          newPageErrorIndicatorBuilder: (_) =>
+              PagingRetryView(onRetry: controller.loadNextPage),
+          noMoreItemsIndicatorBuilder: (_) => const PagingEndView(),
+          itemBuilder: (context, article, index) {
+            return ArticleCard(
+              article: article,
+              collected: controller.isCollected(article, fromCollection: true),
+              busy: controller.isBusy(article, fromCollection: true),
+              onCollect: () => _remove(context, ref, article),
+              onTap: () {
+                final customBuilder = articleDetailPageBuilder;
+                if (customBuilder != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => customBuilder(article),
+                    ),
+                  );
+                } else {
+                  context.pushNamed(articleDetailRouteName, extra: article);
+                }
               },
-            ),
+            );
+          },
+        ),
+      ),
     );
   }
 
@@ -195,32 +190,6 @@ class _LoginRequiredView extends StatelessWidget {
             const Text('登录后查看和同步收藏'),
             const SizedBox(height: 16),
             FilledButton(onPressed: onLogin, child: const Text('去登录')),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CollectionErrorView extends StatelessWidget {
-  const _CollectionErrorView({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_outlined, size: 52),
-            const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('重试')),
           ],
         ),
       ),
