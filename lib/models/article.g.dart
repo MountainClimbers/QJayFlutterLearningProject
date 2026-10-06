@@ -22,4 +22,6 @@ _Article _$ArticleFromJson(Map<String, dynamic> json) => _Article(
   niceShareDate: json['niceShareDate'] == null
       ? ''
       : _plainText(json['niceShareDate']),
+  collected: json['collect'] == null ? false : _boolValue(json['collect']),
+  originId: _nullableIntValue(json['originId']),
 );

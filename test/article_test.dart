@@ -13,6 +13,8 @@ void main() {
       'superChapterName': '移动开发',
       'chapterName': 'Flutter',
       'niceDate': '刚刚',
+      'collect': true,
+      'originId': 7,
     });
 
     expect(article.id, 42);
@@ -21,6 +23,8 @@ void main() {
     expect(article.displayChapter, '移动开发 / Flutter');
     expect(article.displayDate, '刚刚');
     expect(article.link, 'https://example.com/flutter');
+    expect(article.collected, isTrue);
+    expect(article.originId, 7);
   });
 
   test('生成式文章模型容忍接口中的空值与数字字符串', () {

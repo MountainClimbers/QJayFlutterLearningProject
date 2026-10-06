@@ -80,7 +80,7 @@ git commit -m "架构：共享认证与内容请求会话"
 - Produces: `Article.collected`、`Article.originId`。
 - Produces: `CollectionRepository.fetchCollections/collect/uncollect/removeCollection`。
 
-- [ ] **Step 1: 编写模型和接口失败测试**
+- [x] **Step 1: 编写模型和接口失败测试**
 
 ```dart
 expect(Article.fromJson({'id': 901, 'originId': 42, 'collect': true,
@@ -94,12 +94,12 @@ expect(Article.fromJson({'id': 901, 'originId': 42, 'collect': true,
 - POST `/lg/uncollect_originId/42/json`
 - POST `/lg/uncollect/901/json`，表单为 `originId=42`
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `flutter test test/article_test.dart test/collection_service_test.dart`
 Expected: FAIL，字段和 CollectionService 尚不存在。
 
-- [ ] **Step 3: 实现最小模型与服务**
+- [x] **Step 3: 实现最小模型与服务**
 
 ```dart
 abstract interface class CollectionRepository {
@@ -112,14 +112,14 @@ abstract interface class CollectionRepository {
 
 所有响应统一检查 `errorCode`，并把业务、HTTP、连接和解析错误转换为 `CollectionException`。
 
-- [ ] **Step 4: 生成代码并确认测试通过**
+- [x] **Step 4: 生成代码并确认测试通过**
 
 Run: `dart run build_runner build --delete-conflicting-outputs`
 
 Run: `flutter test test/article_test.dart test/collection_service_test.dart`
 Expected: PASS。
 
-- [ ] **Step 5: 中文提交**
+- [x] **Step 5: 中文提交**
 
 ```bash
 git commit -m "功能：增加文章收藏模型与接口"

@@ -18,6 +18,10 @@ abstract class Article with _$Article {
     @JsonKey(fromJson: _plainText) @Default('') String chapterName,
     @JsonKey(fromJson: _plainText) @Default('') String niceDate,
     @JsonKey(fromJson: _plainText) @Default('') String niceShareDate,
+    @JsonKey(name: 'collect', fromJson: _boolValue)
+    @Default(false)
+    bool collected,
+    @JsonKey(fromJson: _nullableIntValue) int? originId,
   }) = _Article;
 
   factory Article.fromJson(Map<String, dynamic> json) =>
@@ -42,6 +46,18 @@ String _plainText(Object? value) {
 int _intValue(Object? value) {
   if (value is num) return value.toInt();
   return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+int? _nullableIntValue(Object? value) {
+  if (value == null) return null;
+  if (value is num) return value.toInt();
+  return int.tryParse(value.toString());
+}
+
+bool _boolValue(Object? value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  return value?.toString().toLowerCase() == 'true';
 }
 
 String _stringValue(Object? value) => value?.toString().trim() ?? '';
