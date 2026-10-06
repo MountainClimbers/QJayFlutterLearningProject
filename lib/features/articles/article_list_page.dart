@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 import '../../models/article.dart';
 import '../../models/login_user.dart';
@@ -8,8 +9,10 @@ import '../../router/route_names.dart';
 import '../../services/collection_service.dart';
 import '../auth/auth_controller.dart';
 import '../collections/collection_controller.dart';
+import '../shared/paging_views.dart';
 import 'article_card.dart';
 import 'article_list_controller.dart';
+import 'article_list_state.dart';
 
 typedef ArticleDetailPageBuilder = Widget Function(Article article);
 typedef LoginPageBuilder = Widget Function();
@@ -63,18 +66,11 @@ class ArticleListPage extends ConsumerWidget {
             ),
         ],
       ),
-      body: switch (articles) {
-        AsyncData(:final value) => _ArticleList(
-          articles: value,
-          articleDetailPageBuilder: articleDetailPageBuilder,
-          onLoginRequired: () => _openLogin(context),
-        ),
-        AsyncError(:final error) => _ErrorView(
-          message: error.toString(),
-          onRetry: () => ref.invalidate(articleListControllerProvider),
-        ),
-        _ => const Center(child: CircularProgressIndicator()),
-      },
+      body: _ArticleList(
+        state: articles,
+        articleDetailPageBuilder: articleDetailPageBuilder,
+        onLoginRequired: () => _openLogin(context),
+      ),
     );
   }
 
@@ -260,12 +256,12 @@ class _AccountSheet extends ConsumerWidget {
 
 class _ArticleList extends ConsumerWidget {
   const _ArticleList({
-    required this.articles,
+    required this.state,
     required this.articleDetailPageBuilder,
     required this.onLoginRequired,
   });
 
-  final List<Article> articles;
+  final ArticleListState state;
   final ArticleDetailPageBuilder? articleDetailPageBuilder;
   final Future<void> Function() onLoginRequired;
 
@@ -275,6 +271,7 @@ class _ArticleList extends ConsumerWidget {
     final collectionController = ref.read(
       collectionControllerProvider.notifier,
     );
+    final articleController = ref.read(articleListControllerProvider.notifier);
     return RefreshIndicator(
       onRefresh: () async {
         final message = await ref
@@ -285,91 +282,70 @@ class _ArticleList extends ConsumerWidget {
               .showSnackBar(SnackBar(content: Text('刷新失败：$message')));
         }
       },
-      child: articles.isEmpty
-          ? ListView(
-              physics: const AlwaysScrollableScrollPhysics(),
-              children: const [
-                SizedBox(height: 180),
-                Icon(Icons.article_outlined, size: 52),
-                SizedBox(height: 12),
-                Center(child: Text('暂时没有文章，下拉刷新试试')),
-              ],
-            )
-          : ListView.builder(
-              key: const PageStorageKey('article-list'),
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.only(top: 8, bottom: 24),
-              itemCount: articles.length,
-              itemBuilder: (context, index) {
-                final article = articles[index];
-                return ArticleCard(
-                  article: article,
-                  collected: collectionController.isCollected(article),
-                  busy: collectionController.isBusy(article),
-                  onCollect: () async {
-                    final user = switch (ref.read(authControllerProvider)) {
-                      AsyncData(:final value) => value,
-                      _ => null,
-                    };
-                    if (user == null) {
-                      await onLoginRequired();
-                      return;
-                    }
-                    try {
-                      await collectionController.toggle(article);
-                    } catch (error) {
-                      if (error is CollectionAuthenticationException) {
-                        await onLoginRequired();
-                        return;
-                      }
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context)
-                          ..hideCurrentSnackBar()
-                          ..showSnackBar(
-                            SnackBar(content: Text(error.toString())),
-                          );
-                      }
-                    }
-                  },
-                  onTap: () {
-                    final customBuilder = articleDetailPageBuilder;
-                    if (customBuilder != null) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => customBuilder(article),
-                        ),
-                      );
-                    } else {
-                      context.pushNamed(articleDetailRouteName, extra: article);
-                    }
-                  },
-                );
+      child: PagedListView<int, Article>(
+        key: const PageStorageKey('article-list'),
+        state: state.pagingState,
+        fetchNextPage: articleController.loadNextPage,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(top: 8, bottom: 24),
+        builderDelegate: PagedChildBuilderDelegate<Article>(
+          invisibleItemsThreshold: 3,
+          firstPageProgressIndicatorBuilder: (_) =>
+              const Center(child: CircularProgressIndicator()),
+          firstPageErrorIndicatorBuilder: (_) => PagingFirstPageErrorView(
+            message: state.error?.toString() ?? '文章加载失败',
+            onRetry: articleController.loadNextPage,
+          ),
+          noItemsFoundIndicatorBuilder: (_) => const PagingEmptyView(
+            icon: Icons.article_outlined,
+            message: '暂时没有文章，下拉刷新试试',
+          ),
+          newPageProgressIndicatorBuilder: (_) => const PagingProgressView(),
+          newPageErrorIndicatorBuilder: (_) =>
+              PagingRetryView(onRetry: articleController.loadNextPage),
+          noMoreItemsIndicatorBuilder: (_) => const PagingEndView(),
+          itemBuilder: (context, article, index) {
+            return ArticleCard(
+              article: article,
+              collected: collectionController.isCollected(article),
+              busy: collectionController.isBusy(article),
+              onCollect: () async {
+                final user = switch (ref.read(authControllerProvider)) {
+                  AsyncData(:final value) => value,
+                  _ => null,
+                };
+                if (user == null) {
+                  await onLoginRequired();
+                  return;
+                }
+                try {
+                  await collectionController.toggle(article);
+                } catch (error) {
+                  if (error is CollectionAuthenticationException) {
+                    await onLoginRequired();
+                    return;
+                  }
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context)
+                      ..hideCurrentSnackBar()
+                      ..showSnackBar(SnackBar(content: Text(error.toString())));
+                  }
+                }
               },
-            ),
-    );
-  }
-}
-
-class _ErrorView extends StatelessWidget {
-  const _ErrorView({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.cloud_off_outlined, size: 52),
-            const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('重试')),
-          ],
+              onTap: () {
+                final customBuilder = articleDetailPageBuilder;
+                if (customBuilder != null) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => customBuilder(article),
+                    ),
+                  );
+                } else {
+                  context.pushNamed(articleDetailRouteName, extra: article);
+                }
+              },
+            );
+          },
         ),
       ),
     );

@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/article.dart';
+import '../../models/article_page.dart';
 import '../../services/article_service.dart';
 import '../../services/session_client.dart';
+import 'article_list_state.dart';
 
 /// Repository 由 Provider 创建，测试可以用 overrideWithValue 换成假实现。
 final articleRepositoryProvider = Provider<ArticleRepository>((ref) {
@@ -10,32 +14,96 @@ final articleRepositoryProvider = Provider<ArticleRepository>((ref) {
 });
 
 final articleListControllerProvider =
-    AsyncNotifierProvider<ArticleListController, List<Article>>(
+    NotifierProvider<ArticleListController, ArticleListState>(
       ArticleListController.new,
-      // 由页面的“重试”按钮控制重试时机，避免后台重复请求。
-      retry: (_, _) => null,
     );
 
-/// AsyncNotifier 统一持有加载、数据和错误三种异步状态。
-class ArticleListController extends AsyncNotifier<List<Article>> {
+/// Riverpod 负责页码、请求和并发状态，分页组件只负责滚动与展示。
+class ArticleListController extends Notifier<ArticleListState> {
+  int _requestGeneration = 0;
+
   @override
-  Future<List<Article>> build() async {
-    final page = await ref
-        .watch(articleRepositoryProvider)
-        .fetchArticles(page: 0);
-    return page.datas;
+  ArticleListState build() {
+    ref.onDispose(() => _requestGeneration += 1);
+    final generation = ++_requestGeneration;
+    Future<void>.microtask(() => _loadFirstPage(generation)).ignore();
+    return const ArticleListState(isLoading: true);
   }
 
-  /// 下拉刷新时保留当前列表，RefreshIndicator 自己展示刷新进度。
-  Future<String?> refresh() async {
-    final repository = ref.read(articleRepositoryProvider);
+  Future<void> loadNextPage() async {
+    if (state.isLoading || !state.hasMore) return;
+    final generation = _requestGeneration;
+    final page = state.nextPage;
+    state = state.copyWith(isLoading: true, error: null);
     try {
-      final page = await repository.fetchArticles(page: 0);
-      state = AsyncData(page.datas);
+      final result = await ref
+          .read(articleRepositoryProvider)
+          .fetchArticles(page: page);
+      if (!_isCurrent(generation)) return;
+      _applyPage(result, requestedPage: page, replace: false);
+    } catch (error) {
+      if (!_isCurrent(generation)) return;
+      state = state.copyWith(isLoading: false, error: error);
+    }
+  }
+
+  /// 下拉刷新保留已有文章；失败通过返回值交给页面显示 SnackBar。
+  Future<String?> refresh() async {
+    final previous = state;
+    final generation = ++_requestGeneration;
+    state = state.copyWith(isLoading: previous.pages.isEmpty, error: null);
+    try {
+      final result = await ref
+          .read(articleRepositoryProvider)
+          .fetchArticles(page: 0);
+      if (!_isCurrent(generation)) return null;
+      _applyPage(result, requestedPage: 0, replace: true);
       return null;
     } catch (error) {
-      // 刷新失败时保留旧的 AsyncData，让用户仍然可以阅读当前列表。
+      if (!_isCurrent(generation)) return null;
+      state = previous.copyWith(
+        isLoading: false,
+        error: previous.pages.isEmpty ? error : null,
+      );
       return error.toString();
     }
+  }
+
+  Future<void> _loadFirstPage(int generation) async {
+    try {
+      final result = await ref
+          .read(articleRepositoryProvider)
+          .fetchArticles(page: 0);
+      if (!_isCurrent(generation)) return;
+      _applyPage(result, requestedPage: 0, replace: true);
+    } catch (error) {
+      if (!_isCurrent(generation)) return;
+      state = state.copyWith(isLoading: false, error: error);
+    }
+  }
+
+  void _applyPage(
+    ArticlePage result, {
+    required int requestedPage,
+    required bool replace,
+  }) {
+    final knownIds = replace
+        ? <int>{}
+        : state.articles.map((article) => article.id).toSet();
+    final uniqueArticles = <Article>[];
+    for (final article in result.datas) {
+      if (knownIds.add(article.id)) uniqueArticles.add(article);
+    }
+    state = state.copyWith(
+      pages: replace ? [uniqueArticles] : [...state.pages, uniqueArticles],
+      nextPage: requestedPage + 1,
+      hasMore: result.hasMore,
+      isLoading: false,
+      error: null,
+    );
+  }
+
+  bool _isCurrent(int generation) {
+    return ref.mounted && generation == _requestGeneration;
   }
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:qjay_flutter_learning/features/articles/article_card.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_controller.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_page.dart';
@@ -415,7 +416,7 @@ void main() {
     expect(repository.callCount, 2);
   });
 
-  testWidgets('下拉刷新通过 AsyncNotifier 重新获取文章', (tester) async {
+  testWidgets('下拉刷新通过 Riverpod 控制器重新获取文章', (tester) async {
     final repository = _SequenceRepository([
       () async => [firstArticle],
       () async => [refreshedArticle],
@@ -424,7 +425,10 @@ void main() {
     await tester.pumpWidget(_testApp(repository));
     await tester.pumpAndSettle();
 
-    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.drag(
+      find.byType(PagedListView<int, Article>),
+      const Offset(0, 300),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Riverpod 实战'), findsOneWidget);
@@ -441,12 +445,95 @@ void main() {
     await tester.pumpWidget(_testApp(repository));
     await tester.pumpAndSettle();
 
-    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.drag(
+      find.byType(PagedListView<int, Article>),
+      const Offset(0, 300),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Flutter 面试准备'), findsOneWidget);
     expect(find.text('刷新失败：测试刷新失败'), findsOneWidget);
     expect(repository.callCount, 2);
+  });
+
+  testWidgets('滚动接近底部后自动请求下一页并展示新文章', (tester) async {
+    final firstPage = List<Article>.generate(
+      10,
+      (index) => Article(
+        id: index + 10,
+        title: '第一页文章 $index',
+        link: 'https://example.com/${index + 10}',
+      ),
+    );
+    final repository = _PagedArticleRepository((page, attempt) async {
+      return page == 0
+          ? _articlePage(firstPage, page: 0, hasMore: true)
+          : _articlePage([refreshedArticle], page: 1, hasMore: false);
+    });
+
+    await tester.pumpWidget(_testApp(repository));
+    await tester.pumpAndSettle();
+    await tester.fling(
+      find.byType(PagedListView<int, Article>),
+      const Offset(0, -3000),
+      2500,
+    );
+    await tester.pumpAndSettle();
+
+    expect(repository.requestedPages, [0, 1]);
+    expect(repository.requestedPageSizes, [10, 10]);
+    expect(find.text('Riverpod 实战'), findsOneWidget);
+  });
+
+  testWidgets('下一页失败时保留已有文章并可以点击重试', (tester) async {
+    final firstPage = List<Article>.generate(
+      10,
+      (index) => Article(
+        id: index + 10,
+        title: '保留文章 $index',
+        link: 'https://example.com/${index + 10}',
+      ),
+    );
+    final repository = _PagedArticleRepository((page, attempt) async {
+      if (page == 0) {
+        return _articlePage(firstPage, page: 0, hasMore: true);
+      }
+      if (attempt == 1) {
+        throw const ArticleLoadException('测试下一页失败');
+      }
+      return _articlePage([refreshedArticle], page: 1, hasMore: false);
+    });
+
+    await tester.pumpWidget(_testApp(repository));
+    await tester.pumpAndSettle();
+    await tester.fling(
+      find.byType(PagedListView<int, Article>),
+      const Offset(0, -3000),
+      2500,
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('保留文章'), findsWidgets);
+    expect(find.text('加载失败，点击重试'), findsOneWidget);
+
+    await tester.tap(find.text('加载失败，点击重试'));
+    await tester.pumpAndSettle();
+
+    expect(repository.requestedPages, [0, 1, 1]);
+    expect(find.text('Riverpod 实战'), findsOneWidget);
+  });
+
+  testWidgets('文章全部加载完成后显示结束提示', (tester) async {
+    final repository = _PagedArticleRepository(
+      (page, attempt) async =>
+          _articlePage([firstArticle], page: 0, hasMore: false),
+    );
+
+    await tester.pumpWidget(_testApp(repository));
+    await tester.pumpAndSettle();
+
+    expect(find.text('已经到底了'), findsOneWidget);
+    expect(repository.requestedPages, [0]);
   });
 }
 
@@ -538,6 +625,40 @@ class _SequenceRepository implements ArticleRepository {
     final index = callCount++;
     final articles = await responses[index]();
     return ArticlePage(datas: articles);
+  }
+}
+
+ArticlePage _articlePage(
+  List<Article> articles, {
+  required int page,
+  required bool hasMore,
+}) {
+  return ArticlePage(
+    datas: articles,
+    curPage: page + 1,
+    pageCount: hasMore ? page + 2 : page + 1,
+    over: !hasMore,
+  );
+}
+
+class _PagedArticleRepository implements ArticleRepository {
+  _PagedArticleRepository(this.handler);
+
+  final Future<ArticlePage> Function(int page, int pageAttempt) handler;
+  final List<int> requestedPages = [];
+  final List<int> requestedPageSizes = [];
+  final Map<int, int> _attempts = {};
+
+  @override
+  Future<ArticlePage> fetchArticles({
+    required int page,
+    int pageSize = wanAndroidPageSize,
+  }) {
+    requestedPages.add(page);
+    requestedPageSizes.add(pageSize);
+    final attempt = (_attempts[page] ?? 0) + 1;
+    _attempts[page] = attempt;
+    return handler(page, attempt);
   }
 }
 
