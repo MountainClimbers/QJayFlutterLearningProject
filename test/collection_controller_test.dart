@@ -103,6 +103,28 @@ void main() {
     ]);
   });
 
+  test('收藏请求尚未完成时按需同步会等待成功后再刷新', () async {
+    final collectCompleter = Completer<void>();
+    final repository = _FakeCollectionRepository(
+      collectHandler: (_) => collectCompleter.future,
+    );
+    final container = await _createContainer(repository);
+    addTearDown(container.dispose);
+    await _waitForCollections(container);
+    final controller = container.read(collectionControllerProvider.notifier);
+
+    final collect = controller.toggle(regularArticle);
+    final sync = controller.refreshIfNeeded();
+    repository.collections = [collectionRecord];
+    collectCompleter.complete();
+    await Future.wait([collect, sync]);
+
+    expect(repository.fetchCallCount, 2);
+    expect(container.read(collectionControllerProvider).articles, [
+      collectionRecord,
+    ]);
+  });
+
   test('服务器刷新可以同时清除旧收藏并补充新收藏', () async {
     final repository = _FakeCollectionRepository(
       collections: [collectionRecord],
@@ -194,6 +216,92 @@ void main() {
     final state = container.read(collectionControllerProvider);
     expect(state.identity, '0:new-user');
     expect(state.articles, [newAccountRecord]);
+  });
+
+  test('退出后重登同一账号时旧收藏响应不能写入新会话', () async {
+    final oldCollectRequest = Completer<void>();
+    const sameUser = LoginUser(id: 7, username: 'MountainClimbers');
+    final authRepository = _FakeAuthRepository(
+      restoredUser: sameUser,
+      loginResult: sameUser,
+    );
+    final repository = _FakeCollectionRepository(
+      collectHandler: (_) => oldCollectRequest.future,
+    );
+    final container = await _createContainer(
+      repository,
+      authRepository: authRepository,
+    );
+    addTearDown(container.dispose);
+    await _waitForCollections(container);
+
+    final oldCollect = container
+        .read(collectionControllerProvider.notifier)
+        .toggle(regularArticle);
+    await Future<void>.delayed(Duration.zero);
+    await container.read(authControllerProvider.notifier).logout();
+    await container
+        .read(authControllerProvider.notifier)
+        .login(username: sameUser.username, password: '123456');
+    await _waitForCollections(container);
+
+    oldCollectRequest.complete();
+    await oldCollect;
+
+    expect(
+      container
+          .read(collectionControllerProvider.notifier)
+          .isCollected(regularArticle),
+      isFalse,
+    );
+  });
+
+  test('同一账号重新登录后新收藏请求不会被旧请求阻止', () async {
+    final oldCollectRequest = Completer<void>();
+    final newCollectRequest = Completer<void>();
+    const sameUser = LoginUser(id: 7, username: 'MountainClimbers');
+    final authRepository = _FakeAuthRepository(
+      restoredUser: sameUser,
+      loginResult: sameUser,
+    );
+    late final _FakeCollectionRepository repository;
+    repository = _FakeCollectionRepository(
+      collectHandler: (_) => repository.collectCallCount == 1
+          ? oldCollectRequest.future
+          : newCollectRequest.future,
+    );
+    final container = await _createContainer(
+      repository,
+      authRepository: authRepository,
+    );
+    addTearDown(container.dispose);
+    await _waitForCollections(container);
+
+    final oldCollect = container
+        .read(collectionControllerProvider.notifier)
+        .toggle(regularArticle);
+    await Future<void>.delayed(Duration.zero);
+    await container.read(authControllerProvider.notifier).logout();
+    await container
+        .read(authControllerProvider.notifier)
+        .login(username: sameUser.username, password: '123456');
+    await _waitForCollections(container);
+    final newCollect = container
+        .read(collectionControllerProvider.notifier)
+        .toggle(regularArticle);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(repository.collectCallCount, 2);
+    newCollectRequest.complete();
+    await newCollect;
+    oldCollectRequest.complete();
+    await oldCollect;
+    expect(
+      container
+          .read(collectionControllerProvider.notifier)
+          .isCollected(regularArticle),
+      isTrue,
+    );
   });
 
   test('收藏接口判定会话过期时清理本地登录状态', () async {
@@ -332,6 +440,13 @@ class _FakeCollectionRepository implements CollectionRepository {
 }
 
 class _FakeAuthRepository implements AuthRepository {
+  _FakeAuthRepository({
+    this.restoredUser = const LoginUser(id: 7, username: 'MountainClimbers'),
+    this.loginResult,
+  });
+
+  final LoginUser? restoredUser;
+  final LoginUser? loginResult;
   int clearSessionCallCount = 0;
 
   @override
@@ -343,7 +458,7 @@ class _FakeAuthRepository implements AuthRepository {
   Future<LoginUser> login({
     required String username,
     required String password,
-  }) async => LoginUser(username: username);
+  }) async => loginResult ?? LoginUser(username: username);
 
   @override
   Future<void> logout() async {}
@@ -356,7 +471,5 @@ class _FakeAuthRepository implements AuthRepository {
   }) async => LoginUser(username: username);
 
   @override
-  Future<LoginUser?> restoreSession() async {
-    return const LoginUser(id: 7, username: 'MountainClimbers');
-  }
+  Future<LoginUser?> restoreSession() async => restoredUser;
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/article.dart';
@@ -17,13 +19,13 @@ final collectionControllerProvider =
     );
 
 class CollectionController extends Notifier<CollectionState> {
-  final Set<String> _pendingOperations = {};
+  final Map<String, Completer<void>> _pendingOperations = {};
   final Map<String, int> _mutationVersions = {};
   bool _needsServerRecordRefresh = false;
   int _mutationVersion = 0;
   int _latestCollectionMutationVersion = 0;
   int _requestGeneration = 0;
-  String? _activeIdentity;
+  int _identityEpoch = 0;
 
   @override
   CollectionState build() {
@@ -32,12 +34,12 @@ class CollectionController extends Notifier<CollectionState> {
       _ => null,
     };
     if (user == null) {
-      _resetForIdentity(null);
+      _resetForAuthenticationChange();
       return const CollectionState();
     }
 
     final identity = _identityOf(user);
-    if (_activeIdentity != identity) _resetForIdentity(identity);
+    _resetForAuthenticationChange();
     Future<void>.microtask(() => _load(identity)).ignore();
     return CollectionState(identity: identity, isLoading: true);
   }
@@ -56,10 +58,13 @@ class CollectionController extends Notifier<CollectionState> {
   Future<void> toggle(Article article, {bool fromCollection = false}) async {
     final identity = state.identity;
     if (identity == null) throw const CollectionException('请先登录');
+    final identityEpoch = _identityEpoch;
 
     final key = _key(article, fromCollection: fromCollection);
-    final operationKey = '$identity|$key';
-    if (!_pendingOperations.add(operationKey)) return;
+    final operationKey = '$identityEpoch|$identity|$key';
+    if (_pendingOperations.containsKey(operationKey)) return;
+    final operationCompletion = Completer<void>();
+    _pendingOperations[operationKey] = operationCompletion;
 
     final wasCollected = isCollected(article, fromCollection: fromCollection);
     state = state.copyWith(busyKeys: {...state.busyKeys, key});
@@ -76,7 +81,7 @@ class CollectionController extends Notifier<CollectionState> {
         await repository.collect(article.id);
       }
 
-      if (state.identity != identity) return;
+      if (!_isCurrentIdentity(identity, identityEpoch)) return;
       final nextCollected = fromCollection ? false : !wasCollected;
       final confirmed = {...state.confirmed, key: nextCollected};
       final articles = nextCollected
@@ -92,11 +97,12 @@ class CollectionController extends Notifier<CollectionState> {
         _latestCollectionMutationVersion = mutationVersion;
       }
     } on CollectionAuthenticationException {
-      await _expireSession(identity);
+      await _expireSession(identity, identityEpoch);
       rethrow;
     } finally {
       _pendingOperations.remove(operationKey);
-      if (state.identity == identity) {
+      if (!operationCompletion.isCompleted) operationCompletion.complete();
+      if (_isCurrentIdentity(identity, identityEpoch)) {
         state = state.copyWith(busyKeys: {...state.busyKeys}..remove(key));
       }
     }
@@ -114,8 +120,20 @@ class CollectionController extends Notifier<CollectionState> {
     }
   }
 
-  Future<String?> refreshIfNeeded() {
-    if (!_needsServerRecordRefresh) return Future.value();
+  Future<String?> refreshIfNeeded() async {
+    final identity = state.identity;
+    if (identity == null) return null;
+    final identityEpoch = _identityEpoch;
+    final operationPrefix = '$identityEpoch|$identity|';
+    final pendingOperations = _pendingOperations.entries
+        .where((entry) => entry.key.startsWith(operationPrefix))
+        .map((entry) => entry.value.future)
+        .toList(growable: false);
+    if (pendingOperations.isNotEmpty) {
+      await Future.wait(pendingOperations);
+    }
+    if (!_isCurrentIdentity(identity, identityEpoch)) return null;
+    if (!_needsServerRecordRefresh) return null;
     return refresh();
   }
 
@@ -160,7 +178,7 @@ class CollectionController extends Notifier<CollectionState> {
           _latestCollectionMutationVersion > mutationVersionAtStart;
     } on CollectionAuthenticationException {
       if (!_isCurrentRequest(identity, requestGeneration)) return;
-      await _expireSession(identity);
+      await _expireSession(identity, _identityEpoch);
       rethrow;
     } catch (error) {
       if (_isCurrentRequest(identity, requestGeneration)) {
@@ -179,8 +197,12 @@ class CollectionController extends Notifier<CollectionState> {
         requestGeneration == _requestGeneration;
   }
 
-  Future<void> _expireSession(String identity) async {
-    if (state.identity != identity) return;
+  bool _isCurrentIdentity(String identity, int identityEpoch) {
+    return state.identity == identity && identityEpoch == _identityEpoch;
+  }
+
+  Future<void> _expireSession(String identity, int identityEpoch) async {
+    if (!_isCurrentIdentity(identity, identityEpoch)) return;
     try {
       await ref.read(authControllerProvider.notifier).expireSession();
     } catch (_) {
@@ -188,9 +210,8 @@ class CollectionController extends Notifier<CollectionState> {
     }
   }
 
-  void _resetForIdentity(String? identity) {
-    if (_activeIdentity == identity) return;
-    _activeIdentity = identity;
+  void _resetForAuthenticationChange() {
+    _identityEpoch += 1;
     _requestGeneration += 1;
     _mutationVersions.clear();
     _mutationVersion = 0;
