@@ -7,6 +7,7 @@ import 'package:qjay_flutter_learning/features/articles/article_card.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_controller.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_page.dart';
 import 'package:qjay_flutter_learning/features/auth/auth_controller.dart';
+import 'package:qjay_flutter_learning/features/auth/login_page.dart';
 import 'package:qjay_flutter_learning/features/collections/collection_controller.dart';
 import 'package:qjay_flutter_learning/models/article.dart';
 import 'package:qjay_flutter_learning/models/login_user.dart';
@@ -149,7 +150,9 @@ void main() {
       () async => [firstArticle],
     ]);
 
-    await tester.pumpWidget(_testApp(repository));
+    await tester.pumpWidget(
+      _testApp(repository, loginPageBuilder: _connectedLoginPage),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('收藏'));
@@ -342,7 +345,11 @@ void main() {
     );
 
     await tester.pumpWidget(
-      _testApp(repository, authRepository: authRepository),
+      _testApp(
+        repository,
+        authRepository: authRepository,
+        loginPageBuilder: _connectedLoginPage,
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -416,6 +423,26 @@ void main() {
     expect(find.text('刷新失败：测试刷新失败'), findsOneWidget);
     expect(repository.callCount, 2);
   });
+}
+
+Widget _connectedLoginPage() {
+  return Consumer(
+    builder: (context, ref, child) => LoginPage(
+      onSubmit: (credentials) => ref
+          .read(authControllerProvider.notifier)
+          .login(
+            username: credentials.username,
+            password: credentials.password,
+          ),
+      onRegister: (credentials) => ref
+          .read(authControllerProvider.notifier)
+          .register(
+            username: credentials.username,
+            password: credentials.password,
+            repeatedPassword: credentials.repeatedPassword,
+          ),
+    ),
+  );
 }
 
 Widget _testApp(

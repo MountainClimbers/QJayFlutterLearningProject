@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
-import '../auth/login_page.dart';
-import '../auth/auth_controller.dart';
-import '../collections/collection_controller.dart';
 import '../../models/article.dart';
 import '../../models/login_user.dart';
+import '../../router/route_names.dart';
+import '../auth/auth_controller.dart';
+import '../collections/collection_controller.dart';
 import 'article_card.dart';
-import 'article_detail_page.dart';
 import 'article_list_controller.dart';
 
 typedef ArticleDetailPageBuilder = Widget Function(Article article);
@@ -35,6 +35,7 @@ class ArticleListPage extends ConsumerWidget {
     final isRestoringSession = authState is AsyncLoading<LoginUser?>;
 
     return Scaffold(
+      drawer: const _HomeDrawer(),
       appBar: AppBar(
         title: const Text('文章列表'),
         centerTitle: false,
@@ -51,7 +52,7 @@ class ArticleListPage extends ConsumerWidget {
           else if (currentUser == null)
             IconButton(
               tooltip: '登录',
-              onPressed: () => _openLogin(context, ref),
+              onPressed: () => _openLogin(context),
               icon: const Icon(Icons.login),
             )
           else
@@ -64,10 +65,8 @@ class ArticleListPage extends ConsumerWidget {
       body: switch (articles) {
         AsyncData(:final value) => _ArticleList(
           articles: value,
-          articleDetailPageBuilder:
-              articleDetailPageBuilder ??
-              (article) => ArticleDetailPage(article: article),
-          onLoginRequired: () => _openLogin(context, ref),
+          articleDetailPageBuilder: articleDetailPageBuilder,
+          onLoginRequired: () => _openLogin(context),
         ),
         AsyncError(:final error) => _ErrorView(
           message: error.toString(),
@@ -78,26 +77,15 @@ class ArticleListPage extends ConsumerWidget {
     );
   }
 
-  Future<void> _openLogin(BuildContext context, WidgetRef ref) async {
-    final builder =
-        loginPageBuilder ??
-        () => LoginPage(
-          onSubmit: (credentials) => ref
-              .read(authControllerProvider.notifier)
-              .login(
-                username: credentials.username,
-                password: credentials.password,
-              ),
-          onRegister: (credentials) => ref
-              .read(authControllerProvider.notifier)
-              .register(
-                username: credentials.username,
-                password: credentials.password,
-                repeatedPassword: credentials.repeatedPassword,
-              ),
-        );
-    final user = await Navigator.of(context)
-        .push<LoginUser>(MaterialPageRoute(builder: (_) => builder()));
+  Future<void> _openLogin(BuildContext context) async {
+    final customBuilder = loginPageBuilder;
+    late final LoginUser? user;
+    if (customBuilder != null) {
+      user = await Navigator.of(context)
+          .push<LoginUser>(MaterialPageRoute(builder: (_) => customBuilder()));
+    } else {
+      user = await context.pushNamed<LoginUser>(accountRouteName);
+    }
     if (user != null && context.mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('登录成功：${user.displayName}')));
@@ -116,6 +104,40 @@ class ArticleListPage extends ConsumerWidget {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(feedback.message)));
     }
+  }
+}
+
+class _HomeDrawer extends StatelessWidget {
+  const _HomeDrawer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      child: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          children: [
+            ListTile(
+              key: const ValueKey('drawer-account'),
+              leading: const Icon(Icons.person_outline),
+              title: const Text('登录/注册'),
+              onTap: () => _open(context, accountRouteName),
+            ),
+            ListTile(
+              key: const ValueKey('drawer-collections'),
+              leading: const Icon(Icons.bookmarks_outlined),
+              title: const Text('我的收藏'),
+              onTap: () => _open(context, collectionsRouteName),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _open(BuildContext context, String routeName) {
+    Navigator.of(context).pop();
+    context.pushNamed(routeName);
   }
 }
 
@@ -243,7 +265,7 @@ class _ArticleList extends ConsumerWidget {
   });
 
   final List<Article> articles;
-  final ArticleDetailPageBuilder articleDetailPageBuilder;
+  final ArticleDetailPageBuilder? articleDetailPageBuilder;
   final Future<void> Function() onLoginRequired;
 
   @override
@@ -305,11 +327,16 @@ class _ArticleList extends ConsumerWidget {
                     }
                   },
                   onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => articleDetailPageBuilder(article),
-                      ),
-                    );
+                    final customBuilder = articleDetailPageBuilder;
+                    if (customBuilder != null) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => customBuilder(article),
+                        ),
+                      );
+                    } else {
+                      context.pushNamed(articleDetailRouteName, extra: article);
+                    }
                   },
                 );
               },

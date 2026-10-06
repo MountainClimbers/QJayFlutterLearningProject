@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../models/article.dart';
 import '../../models/login_user.dart';
+import '../../router/route_names.dart';
 import '../articles/article_card.dart';
-import '../articles/article_detail_page.dart';
 import '../auth/auth_controller.dart';
-import '../auth/login_page.dart';
 import 'collection_controller.dart';
 
 typedef CollectionArticleDetailPageBuilder = Widget Function(Article article);
@@ -37,44 +37,30 @@ class CollectionPage extends ConsumerWidget {
           child: CircularProgressIndicator(),
         ),
         _ when currentUser == null => _LoginRequiredView(
-          onLogin: () => _openLogin(context, ref),
+          onLogin: () => _openLogin(context),
         ),
         _ => _CollectionBody(
-          articleDetailPageBuilder:
-              articleDetailPageBuilder ??
-              (article) => ArticleDetailPage(article: article),
+          articleDetailPageBuilder: articleDetailPageBuilder,
         ),
       },
     );
   }
 
-  Future<void> _openLogin(BuildContext context, WidgetRef ref) async {
-    final builder =
-        loginPageBuilder ??
-        () => LoginPage(
-          onSubmit: (credentials) => ref
-              .read(authControllerProvider.notifier)
-              .login(
-                username: credentials.username,
-                password: credentials.password,
-              ),
-          onRegister: (credentials) => ref
-              .read(authControllerProvider.notifier)
-              .register(
-                username: credentials.username,
-                password: credentials.password,
-                repeatedPassword: credentials.repeatedPassword,
-              ),
-        );
-    await Navigator.of(context)
-        .push<LoginUser>(MaterialPageRoute(builder: (_) => builder()));
+  Future<void> _openLogin(BuildContext context) async {
+    final customBuilder = loginPageBuilder;
+    if (customBuilder != null) {
+      await Navigator.of(context)
+          .push<LoginUser>(MaterialPageRoute(builder: (_) => customBuilder()));
+    } else {
+      await context.pushNamed<LoginUser>(accountRouteName);
+    }
   }
 }
 
 class _CollectionBody extends ConsumerWidget {
   const _CollectionBody({required this.articleDetailPageBuilder});
 
-  final CollectionArticleDetailPageBuilder articleDetailPageBuilder;
+  final CollectionArticleDetailPageBuilder? articleDetailPageBuilder;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -119,11 +105,18 @@ class _CollectionBody extends ConsumerWidget {
                   ),
                   busy: controller.isBusy(article, fromCollection: true),
                   onCollect: () => _remove(context, ref, article),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => articleDetailPageBuilder(article),
-                    ),
-                  ),
+                  onTap: () {
+                    final customBuilder = articleDetailPageBuilder;
+                    if (customBuilder != null) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => customBuilder(article),
+                        ),
+                      );
+                    } else {
+                      context.pushNamed(articleDetailRouteName, extra: article);
+                    }
+                  },
                 );
               },
             ),

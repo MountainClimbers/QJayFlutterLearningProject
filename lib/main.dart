@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'features/articles/article_list_page.dart';
+import 'router/app_router.dart';
 
 void main() {
   runApp(const ProviderScope(child: WanAndroidLearningApp()));
@@ -12,7 +12,7 @@ class WanAndroidLearningApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: '玩 Android · Flutter 学习',
       theme: ThemeData(
@@ -20,7 +20,7 @@ class WanAndroidLearningApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF7F8FA),
         useMaterial3: true,
       ),
-      home: const ArticleListPage(),
+      routerConfig: appRouter,
     );
   }
 }

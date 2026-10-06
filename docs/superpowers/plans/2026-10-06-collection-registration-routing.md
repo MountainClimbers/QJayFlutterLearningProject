@@ -296,18 +296,18 @@ git commit -m "功能：增加我的收藏列表页面"
 - Produces named routes: `home`、`articleDetail`、`account`、`collections`。
 - Produces paths: `/`、`/article`、`/account`、`/collections`。
 
-- [ ] **Step 1: 添加依赖并编写路由失败测试**
+- [x] **Step 1: 添加依赖并编写路由失败测试**
 
 Run: `flutter pub add go_router`
 
 测试 `MaterialApp.router` 能从首页打开详情、账号和收藏；`/article` 缺少合法 Article extra 时显示参数错误页。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `flutter test test/app_router_test.dart test/app_flow_test.dart`
 Expected: FAIL，路由配置和 Drawer 尚不存在。
 
-- [ ] **Step 3: 实现命名路由与 Drawer**
+- [x] **Step 3: 实现命名路由与 Drawer**
 
 ```dart
 final appRouter = GoRouter(
@@ -322,12 +322,12 @@ final appRouter = GoRouter(
 
 应用改为 `MaterialApp.router(routerConfig: appRouter)`。Drawer 只包含“登录/注册”和“我的收藏”，先关闭 Drawer，再 `pushNamed`。
 
-- [ ] **Step 4: 运行路由与流程测试确认通过**
+- [x] **Step 4: 运行路由与流程测试确认通过**
 
 Run: `flutter test test/app_router_test.dart test/article_list_page_test.dart test/app_flow_test.dart`
 Expected: PASS。
 
-- [ ] **Step 5: 中文提交**
+- [x] **Step 5: 中文提交**
 
 ```bash
 git commit -m "架构：使用统一路由管理页面导航"
