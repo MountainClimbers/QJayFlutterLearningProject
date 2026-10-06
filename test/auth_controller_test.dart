@@ -282,6 +282,7 @@ class _FakeAuthRepository implements AuthRepository {
     return restoredUser;
   }
 
+  @override
   Future<LoginUser> register({
     required String username,
     required String password,

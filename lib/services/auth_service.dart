@@ -119,7 +119,7 @@ class AuthService implements AuthRepository {
           message == null || message.isEmpty ? '注册失败' : message,
         );
       }
-      return login(username: username, password: password);
+      return await login(username: username, password: password);
     } on AuthException {
       rethrow;
     } on DioException catch (error) {
