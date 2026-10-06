@@ -137,16 +137,16 @@ git commit -m "功能：增加文章收藏模型与接口"
 - Produces: `AuthRepository.register({username, password, repeatedPassword})`。
 - Produces: `AuthController.register(...) -> Future<LoginUser>`。
 
-- [ ] **Step 1: 编写注册失败测试**
+- [x] **Step 1: 编写注册失败测试**
 
 测试注册提交 `/user/register` 的三个表单字段；注册成功后继续请求 `/user/login` 并返回登录用户；控制器注册与退出按调用顺序串行。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `flutter test test/auth_service_test.dart test/auth_controller_test.dart`
 Expected: FAIL，register 方法不存在。
 
-- [ ] **Step 3: 实现注册后登录**
+- [x] **Step 3: 实现注册后登录**
 
 ```dart
 Future<LoginUser> register({
@@ -158,12 +158,12 @@ Future<LoginUser> register({
 
 服务先检查注册响应，再调用现有 login 建立会话。控制器把整个注册流程放入 `_runSerialized`，成功写入 `AsyncData(user)`，失败写入 `AsyncError`。
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `flutter test test/auth_service_test.dart test/auth_controller_test.dart`
 Expected: PASS。
 
-- [ ] **Step 5: 中文提交**
+- [x] **Step 5: 中文提交**
 
 ```bash
 git commit -m "功能：实现账号注册并自动登录"

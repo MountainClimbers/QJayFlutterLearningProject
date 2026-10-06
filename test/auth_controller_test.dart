@@ -52,6 +52,57 @@ void main() {
     expect(state.error, exception);
   });
 
+  test('注册成功后保存自动登录返回的用户', () async {
+    const registeredUser = LoginUser(id: 10, username: 'new-user');
+    final repository = _FakeAuthRepository(registerResult: registeredUser);
+    final container = _createContainer(repository);
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    final result = await container
+        .read(authControllerProvider.notifier)
+        .register(
+          username: 'new-user',
+          password: '123456',
+          repeatedPassword: '123456',
+        );
+
+    expect(result, registeredUser);
+    expect(container.read(authControllerProvider).value, registeredUser);
+    expect(repository.lastRepeatedPassword, '123456');
+  });
+
+  test('注册进行中退出请求等待注册完成', () async {
+    final registerCompleter = Completer<LoginUser>();
+    final repository = _FakeAuthRepository(
+      registerHandler: (_, _, _) => registerCompleter.future,
+    );
+    final container = _createContainer(repository);
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    final registerFuture = container
+        .read(authControllerProvider.notifier)
+        .register(
+          username: 'new-user',
+          password: '123456',
+          repeatedPassword: '123456',
+        );
+    await Future<void>.delayed(Duration.zero);
+    final logoutFuture = container
+        .read(authControllerProvider.notifier)
+        .logout();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(repository.registerCallCount, 1);
+    expect(repository.logoutCallCount, 0);
+
+    registerCompleter.complete(const LoginUser(id: 10, username: 'new-user'));
+    await registerFuture;
+    await logoutFuture;
+    expect(container.read(authControllerProvider).value, isNull);
+  });
+
   test('启动恢复完成后才执行登录，恢复结果不会覆盖登录用户', () async {
     final restoreCompleter = Completer<LoginUser?>();
     const loggedInUser = LoginUser(id: 9, username: 'new-user');
@@ -181,24 +232,35 @@ class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository({
     this.restoredUser,
     this.loginResult,
+    this.registerResult,
     this.loginError,
     this.restoreHandler,
     this.loginHandler,
+    this.registerHandler,
     this.logoutHandler,
     this.logoutError,
   });
 
   final LoginUser? restoredUser;
   final LoginUser? loginResult;
+  final LoginUser? registerResult;
   final Object? loginError;
   final Future<LoginUser?> Function()? restoreHandler;
   final Future<LoginUser> Function(String username, String password)?
   loginHandler;
+  final Future<LoginUser> Function(
+    String username,
+    String password,
+    String repeatedPassword,
+  )?
+  registerHandler;
   final Future<void> Function()? logoutHandler;
   final Object? logoutError;
   String? lastUsername;
   String? lastPassword;
+  String? lastRepeatedPassword;
   int loginCallCount = 0;
+  int registerCallCount = 0;
   int logoutCallCount = 0;
 
   @override
@@ -218,6 +280,21 @@ class _FakeAuthRepository implements AuthRepository {
   Future<LoginUser?> restoreSession() async {
     if (restoreHandler case final handler?) return handler();
     return restoredUser;
+  }
+
+  Future<LoginUser> register({
+    required String username,
+    required String password,
+    required String repeatedPassword,
+  }) async {
+    registerCallCount += 1;
+    lastUsername = username;
+    lastPassword = password;
+    lastRepeatedPassword = repeatedPassword;
+    if (registerHandler case final handler?) {
+      return handler(username, password, repeatedPassword);
+    }
+    return registerResult ?? const LoginUser(username: 'registered');
   }
 
   @override

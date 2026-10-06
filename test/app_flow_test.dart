@@ -88,4 +88,13 @@ class _FlowAuthRepository implements AuthRepository {
   Future<LoginUser?> restoreSession() async {
     return const LoginUser(id: 7, username: 'MountainClimbers', nickname: '山友');
   }
+
+  @override
+  Future<LoginUser> register({
+    required String username,
+    required String password,
+    required String repeatedPassword,
+  }) async {
+    return LoginUser(username: username);
+  }
 }

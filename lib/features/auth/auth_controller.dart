@@ -57,6 +57,30 @@ class AuthController extends AsyncNotifier<LoginUser?> {
     });
   }
 
+  Future<LoginUser> register({
+    required String username,
+    required String password,
+    required String repeatedPassword,
+  }) {
+    return _runSerialized(() async {
+      await _initialRestoreCompleted.future;
+      state = const AsyncLoading<LoginUser?>();
+      try {
+        final repository = await ref.read(authRepositoryProvider.future);
+        final user = await repository.register(
+          username: username,
+          password: password,
+          repeatedPassword: repeatedPassword,
+        );
+        state = AsyncData(user);
+        return user;
+      } catch (error, stackTrace) {
+        state = AsyncError(error, stackTrace);
+        rethrow;
+      }
+    });
+  }
+
   Future<void> logout() {
     return _runSerialized(() async {
       await _initialRestoreCompleted.future;

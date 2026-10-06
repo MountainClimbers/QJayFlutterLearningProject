@@ -402,6 +402,17 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<LoginUser> register({
+    required String username,
+    required String password,
+    required String repeatedPassword,
+  }) async {
+    lastUsername = username;
+    lastPassword = password;
+    return loginResult ?? LoginUser(username: username);
+  }
+
+  @override
   Future<void> logout() async {
     logoutCallCount += 1;
     if (logoutHandler case final handler?) await handler();

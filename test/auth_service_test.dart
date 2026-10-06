@@ -75,6 +75,42 @@ void main() {
     );
   });
 
+  test('注册服务提交确认密码并在成功后自动登录', () async {
+    final requests = <RequestOptions>[];
+    final dio = _stubDio((options) {
+      requests.add(options);
+      if (options.uri.path == '/user/register') {
+        return _jsonResponse({
+          'errorCode': 0,
+          'errorMsg': '',
+          'data': {'id': 8, 'username': 'new-user'},
+        });
+      }
+      return _jsonResponse({
+        'errorCode': 0,
+        'errorMsg': '',
+        'data': {'id': 8, 'username': 'new-user', 'nickname': '新用户'},
+      });
+    });
+    final service = AuthService(dio: dio, cookieJar: CookieJar());
+
+    final user = await service.register(
+      username: 'new-user',
+      password: '123456',
+      repeatedPassword: '123456',
+    );
+
+    expect(requests, hasLength(2));
+    expect(requests[0].uri.path, '/user/register');
+    expect(requests[0].data, {
+      'username': 'new-user',
+      'password': '123456',
+      'repassword': '123456',
+    });
+    expect(requests[1].uri.path, '/user/login');
+    expect(user.displayName, '新用户');
+  });
+
   test('登录服务从完整认证 Cookie 恢复用户名', () async {
     final cookieJar = CookieJar();
     await cookieJar.saveFromResponse(Uri.parse(wanAndroidBaseUrl), [

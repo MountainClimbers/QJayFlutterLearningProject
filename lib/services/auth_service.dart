@@ -9,6 +9,12 @@ import 'wan_android_client.dart';
 abstract interface class AuthRepository {
   Future<LoginUser> login({required String username, required String password});
 
+  Future<LoginUser> register({
+    required String username,
+    required String password,
+    required String repeatedPassword,
+  });
+
   Future<LoginUser?> restoreSession();
 
   Future<void> logout();
@@ -76,6 +82,53 @@ class AuthService implements AuthRepository {
       final statusCode = error.response?.statusCode;
       if (statusCode != null) {
         throw AuthException('登录请求失败（$statusCode）');
+      }
+      throw const AuthException('网络连接失败，请稍后重试');
+    } on FormatException {
+      throw const AuthException('服务器返回的数据无法解析');
+    }
+  }
+
+  @override
+  Future<LoginUser> register({
+    required String username,
+    required String password,
+    required String repeatedPassword,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        '/user/register',
+        data: {
+          'username': username,
+          'password': password,
+          'repassword': repeatedPassword,
+        },
+        options: Options(contentType: Headers.formUrlEncodedContentType),
+      );
+      final root = response.data;
+      if (root == null) {
+        throw const AuthException('服务器返回的数据格式不正确');
+      }
+      final rawErrorCode = root['errorCode'];
+      if (rawErrorCode is! num) {
+        throw const AuthException('服务器返回的数据无法解析');
+      }
+      if (rawErrorCode.toInt() != 0) {
+        final message = root['errorMsg']?.toString().trim();
+        throw AuthException(
+          message == null || message.isEmpty ? '注册失败' : message,
+        );
+      }
+      return login(username: username, password: password);
+    } on AuthException {
+      rethrow;
+    } on DioException catch (error) {
+      if (error.error is FormatException) {
+        throw const AuthException('服务器返回的数据无法解析');
+      }
+      final statusCode = error.response?.statusCode;
+      if (statusCode != null) {
+        throw AuthException('注册请求失败（$statusCode）');
       }
       throw const AuthException('网络连接失败，请稍后重试');
     } on FormatException {
