@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/login_user.dart';
 import '../../services/auth_service.dart';
+import '../../services/session_client.dart';
 
 /// 登录仓库需要先创建持久化 Cookie 容器，因此本身也是异步 Provider。
 final authRepositoryProvider = FutureProvider<AuthRepository>((ref) {
-  return createPersistentAuthRepository();
+  final client = ref.watch(sessionClientProvider);
+  return createAuthRepository(client);
 });
 
 final authControllerProvider =

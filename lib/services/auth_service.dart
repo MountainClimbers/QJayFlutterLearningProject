@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:dio_cookie_manager/dio_cookie_manager.dart';
 
 import '../models/login_user.dart';
-import 'secure_cookie_storage.dart';
+import 'session_client.dart';
 import 'wan_android_client.dart';
 
 abstract interface class AuthRepository {
@@ -168,11 +168,15 @@ class AuthService implements AuthRepository {
 }
 
 Future<AuthRepository> createPersistentAuthRepository() async {
-  final cookieJar = PersistCookieJar(
-    storage: SecureCookieStorage(FlutterSecureKeyValueStore()),
-  );
-  await cookieJar.forceInit();
-  return AuthService(cookieJar: cookieJar);
+  return createAuthRepository(createPersistentWanAndroidSessionClient());
+}
+
+Future<AuthRepository> createAuthRepository(
+  WanAndroidSessionClient client,
+) async {
+  final cookieJar = client.cookieJar;
+  if (cookieJar is PersistCookieJar) await cookieJar.forceInit();
+  return AuthService(dio: client.dio, cookieJar: cookieJar);
 }
 
 String _decodeCookieValue(String value) {

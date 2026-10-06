@@ -2,10 +2,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/article.dart';
 import '../../services/article_service.dart';
+import '../../services/session_client.dart';
 
 /// Repository 由 Provider 创建，测试可以用 overrideWithValue 换成假实现。
 final articleRepositoryProvider = Provider<ArticleRepository>((ref) {
-  return ArticleService();
+  return ArticleService(dio: ref.watch(sessionClientProvider).dio);
 });
 
 final articleListControllerProvider =

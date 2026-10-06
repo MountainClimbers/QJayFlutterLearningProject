@@ -34,16 +34,16 @@
 - Produces: `Future<WanAndroidSessionClient> createPersistentSessionClient()`。
 - Produces: `sessionClientProvider`，认证、文章和收藏 Provider 从中取得同一个 Dio 与 CookieJar。
 
-- [ ] **Step 1: 编写共享 Cookie 行为测试**
+- [x] **Step 1: 编写共享 Cookie 行为测试**
 
 在认证和文章测试中注入同一个内存 CookieJar，先保存认证 Cookie，再断言文章请求携带该 Cookie；该测试应因文章 Repository 尚未使用共享客户端而失败。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `flutter test test/auth_service_test.dart test/article_service_test.dart`
 Expected: FAIL，文章请求没有共享认证 Cookie。
 
-- [ ] **Step 3: 实现会话客户端并调整 Provider**
+- [x] **Step 3: 实现会话客户端并调整 Provider**
 
 ```dart
 class WanAndroidSessionClient {
@@ -55,12 +55,12 @@ class WanAndroidSessionClient {
 
 由 `sessionClientProvider` 异步创建安全 CookieJar，给 Dio 安装一个 CookieManager。`AuthService`、`ArticleService` 构造时接收该 Dio；测试仍可覆盖 Repository Provider。
 
-- [ ] **Step 4: 运行认证与文章测试确认通过**
+- [x] **Step 4: 运行认证与文章测试确认通过**
 
 Run: `flutter test test/auth_service_test.dart test/article_service_test.dart test/article_list_page_test.dart`
 Expected: PASS。
 
-- [ ] **Step 5: 中文提交**
+- [x] **Step 5: 中文提交**
 
 ```bash
 git commit -m "架构：共享认证与内容请求会话"
