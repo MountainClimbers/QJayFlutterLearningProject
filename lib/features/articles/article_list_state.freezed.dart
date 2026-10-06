@@ -15,7 +15,7 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$ArticleListState {
 
- List<List<Article>> get pages; int get nextPage; bool get hasMore; bool get isLoading; Object? get error;
+ List<List<Article>> get pages; int get nextPage; bool get hasMore; bool get isLoading; bool get isRefreshing; Object? get error;
 /// Create a copy of ArticleListState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -27,20 +27,20 @@ $ArticleListStateCopyWith<ArticleListState> get copyWith => _$ArticleListStateCo
 @override
 bool operator ==(Object other) {
   final _this = this as ArticleListState;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ArticleListState&&const DeepCollectionEquality().equals(other.pages, _this.pages)&&(identical(other.nextPage, _this.nextPage) || other.nextPage == _this.nextPage)&&(identical(other.hasMore, _this.hasMore) || other.hasMore == _this.hasMore)&&(identical(other.isLoading, _this.isLoading) || other.isLoading == _this.isLoading)&&const DeepCollectionEquality().equals(other.error, _this.error));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ArticleListState&&const DeepCollectionEquality().equals(other.pages, _this.pages)&&(identical(other.nextPage, _this.nextPage) || other.nextPage == _this.nextPage)&&(identical(other.hasMore, _this.hasMore) || other.hasMore == _this.hasMore)&&(identical(other.isLoading, _this.isLoading) || other.isLoading == _this.isLoading)&&(identical(other.isRefreshing, _this.isRefreshing) || other.isRefreshing == _this.isRefreshing)&&const DeepCollectionEquality().equals(other.error, _this.error));
 }
 
 
 @override
 int get hashCode {
   final _this = this as ArticleListState;
-  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.pages),_this.nextPage,_this.hasMore,_this.isLoading,const DeepCollectionEquality().hash(_this.error));
+  return Object.hash(runtimeType,const DeepCollectionEquality().hash(_this.pages),_this.nextPage,_this.hasMore,_this.isLoading,_this.isRefreshing,const DeepCollectionEquality().hash(_this.error));
 }
 
 @override
 String toString() {
   final _this = this as ArticleListState;
-  return 'ArticleListState(pages: ${_this.pages}, nextPage: ${_this.nextPage}, hasMore: ${_this.hasMore}, isLoading: ${_this.isLoading}, error: ${_this.error})';
+  return 'ArticleListState(pages: ${_this.pages}, nextPage: ${_this.nextPage}, hasMore: ${_this.hasMore}, isLoading: ${_this.isLoading}, isRefreshing: ${_this.isRefreshing}, error: ${_this.error})';
 }
 
 
@@ -51,7 +51,7 @@ abstract mixin class $ArticleListStateCopyWith<$Res>  {
   factory $ArticleListStateCopyWith(ArticleListState value, $Res Function(ArticleListState) _then) = _$ArticleListStateCopyWithImpl;
 @useResult
 $Res call({
- List<List<Article>> pages, int nextPage, bool hasMore, bool isLoading, Object? error
+ List<List<Article>> pages, int nextPage, bool hasMore, bool isLoading, bool isRefreshing, Object? error
 });
 
 
@@ -68,12 +68,13 @@ class _$ArticleListStateCopyWithImpl<$Res>
 
 /// Create a copy of ArticleListState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? pages = null,Object? nextPage = null,Object? hasMore = null,Object? isLoading = null,Object? error = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? pages = null,Object? nextPage = null,Object? hasMore = null,Object? isLoading = null,Object? isRefreshing = null,Object? error = freezed,}) {
   return _then(ArticleListState(
 pages: null == pages ? _self.pages : pages // ignore: cast_nullable_to_non_nullable
 as List<List<Article>>,nextPage: null == nextPage ? _self.nextPage : nextPage // ignore: cast_nullable_to_non_nullable
 as int,hasMore: null == hasMore ? _self.hasMore : hasMore // ignore: cast_nullable_to_non_nullable
 as bool,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
+as bool,isRefreshing: null == isRefreshing ? _self.isRefreshing : isRefreshing // ignore: cast_nullable_to_non_nullable
 as bool,error: freezed == error ? _self.error : error ,
   ));
 }
@@ -159,10 +160,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<List<Article>> pages,  int nextPage,  bool hasMore,  bool isLoading,  Object? error)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( List<List<Article>> pages,  int nextPage,  bool hasMore,  bool isLoading,  bool isRefreshing,  Object? error)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ArticleListState() when $default != null:
-return $default(_that.pages,_that.nextPage,_that.hasMore,_that.isLoading,_that.error);case _:
+return $default(_that.pages,_that.nextPage,_that.hasMore,_that.isLoading,_that.isRefreshing,_that.error);case _:
   return orElse();
 
 }
@@ -180,10 +181,10 @@ return $default(_that.pages,_that.nextPage,_that.hasMore,_that.isLoading,_that.e
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<List<Article>> pages,  int nextPage,  bool hasMore,  bool isLoading,  Object? error)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( List<List<Article>> pages,  int nextPage,  bool hasMore,  bool isLoading,  bool isRefreshing,  Object? error)  $default,) {final _that = this;
 switch (_that) {
 case _ArticleListState():
-return $default(_that.pages,_that.nextPage,_that.hasMore,_that.isLoading,_that.error);case _:
+return $default(_that.pages,_that.nextPage,_that.hasMore,_that.isLoading,_that.isRefreshing,_that.error);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -200,10 +201,10 @@ return $default(_that.pages,_that.nextPage,_that.hasMore,_that.isLoading,_that.e
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<List<Article>> pages,  int nextPage,  bool hasMore,  bool isLoading,  Object? error)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( List<List<Article>> pages,  int nextPage,  bool hasMore,  bool isLoading,  bool isRefreshing,  Object? error)?  $default,) {final _that = this;
 switch (_that) {
 case _ArticleListState() when $default != null:
-return $default(_that.pages,_that.nextPage,_that.hasMore,_that.isLoading,_that.error);case _:
+return $default(_that.pages,_that.nextPage,_that.hasMore,_that.isLoading,_that.isRefreshing,_that.error);case _:
   return null;
 
 }
@@ -215,7 +216,7 @@ return $default(_that.pages,_that.nextPage,_that.hasMore,_that.isLoading,_that.e
 
 
 class _ArticleListState extends ArticleListState {
-  const _ArticleListState({ List<List<Article>> pages = const <List<Article>>[], this.nextPage = 0, this.hasMore = true, this.isLoading = false, this.error}): _pages = pages,super._();
+  const _ArticleListState({ List<List<Article>> pages = const <List<Article>>[], this.nextPage = 0, this.hasMore = true, this.isLoading = false, this.isRefreshing = false, this.error}): _pages = pages,super._();
   
 
  final  List<List<Article>> _pages;
@@ -228,6 +229,7 @@ class _ArticleListState extends ArticleListState {
 @override@JsonKey() final  int nextPage;
 @override@JsonKey() final  bool hasMore;
 @override@JsonKey() final  bool isLoading;
+@override@JsonKey() final  bool isRefreshing;
 @override final  Object? error;
 
 /// Create a copy of ArticleListState
@@ -240,18 +242,18 @@ _$ArticleListStateCopyWith<_ArticleListState> get copyWith => __$ArticleListStat
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ArticleListState&&const DeepCollectionEquality().equals(other.pages, _pages)&&(identical(other.nextPage, nextPage) || other.nextPage == nextPage)&&(identical(other.hasMore, hasMore) || other.hasMore == hasMore)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&const DeepCollectionEquality().equals(other.error, error));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ArticleListState&&const DeepCollectionEquality().equals(other.pages, _pages)&&(identical(other.nextPage, nextPage) || other.nextPage == nextPage)&&(identical(other.hasMore, hasMore) || other.hasMore == hasMore)&&(identical(other.isLoading, isLoading) || other.isLoading == isLoading)&&(identical(other.isRefreshing, isRefreshing) || other.isRefreshing == isRefreshing)&&const DeepCollectionEquality().equals(other.error, error));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_pages),nextPage,hasMore,isLoading,const DeepCollectionEquality().hash(error));
+    return Object.hash(runtimeType,const DeepCollectionEquality().hash(_pages),nextPage,hasMore,isLoading,isRefreshing,const DeepCollectionEquality().hash(error));
 }
 
 @override
 String toString() {
-    return 'ArticleListState(pages: $pages, nextPage: $nextPage, hasMore: $hasMore, isLoading: $isLoading, error: $error)';
+    return 'ArticleListState(pages: $pages, nextPage: $nextPage, hasMore: $hasMore, isLoading: $isLoading, isRefreshing: $isRefreshing, error: $error)';
 }
 
 
@@ -262,7 +264,7 @@ abstract mixin class _$ArticleListStateCopyWith<$Res> implements $ArticleListSta
   factory _$ArticleListStateCopyWith(_ArticleListState value, $Res Function(_ArticleListState) _then) = __$ArticleListStateCopyWithImpl;
 @override @useResult
 $Res call({
- List<List<Article>> pages, int nextPage, bool hasMore, bool isLoading, Object? error
+ List<List<Article>> pages, int nextPage, bool hasMore, bool isLoading, bool isRefreshing, Object? error
 });
 
 
@@ -279,12 +281,13 @@ class __$ArticleListStateCopyWithImpl<$Res>
 
 /// Create a copy of ArticleListState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? pages = null,Object? nextPage = null,Object? hasMore = null,Object? isLoading = null,Object? error = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? pages = null,Object? nextPage = null,Object? hasMore = null,Object? isLoading = null,Object? isRefreshing = null,Object? error = freezed,}) {
   return _then(_ArticleListState(
 pages: null == pages ? _self._pages : pages // ignore: cast_nullable_to_non_nullable
 as List<List<Article>>,nextPage: null == nextPage ? _self.nextPage : nextPage // ignore: cast_nullable_to_non_nullable
 as int,hasMore: null == hasMore ? _self.hasMore : hasMore // ignore: cast_nullable_to_non_nullable
 as bool,isLoading: null == isLoading ? _self.isLoading : isLoading // ignore: cast_nullable_to_non_nullable
+as bool,isRefreshing: null == isRefreshing ? _self.isRefreshing : isRefreshing // ignore: cast_nullable_to_non_nullable
 as bool,error: freezed == error ? _self.error : error ,
   ));
 }

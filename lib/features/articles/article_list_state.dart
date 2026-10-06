@@ -14,6 +14,7 @@ abstract class ArticleListState with _$ArticleListState {
     @Default(0) int nextPage,
     @Default(true) bool hasMore,
     @Default(false) bool isLoading,
+    @Default(false) bool isRefreshing,
     Object? error,
   }) = _ArticleListState;
 

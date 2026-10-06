@@ -477,6 +477,46 @@ void main() {
     ]);
   });
 
+  test('刷新收藏列表期间不会启动基于旧页码的分页请求', () async {
+    final refreshPage = Completer<ArticlePage>();
+    final oldSecondPage = Completer<ArticlePage>();
+    var firstPageRequests = 0;
+    final repository = _FakeCollectionRepository(
+      pageHandler: (page, callCount) async {
+        if (page == 1) return oldSecondPage.future;
+        firstPageRequests += 1;
+        return firstPageRequests == 1
+            ? _collectionPage([collectionRecord], page: 0, hasMore: true)
+            : refreshPage.future;
+      },
+    );
+    final container = await _createContainer(repository);
+    addTearDown(container.dispose);
+    await _waitForCollections(container);
+    final controller = container.read(collectionControllerProvider.notifier);
+
+    final refreshing = controller.refresh();
+    await Future<void>.delayed(Duration.zero);
+    final loadingMore = controller.loadNextPage();
+    await Future<void>.delayed(Duration.zero);
+
+    refreshPage.complete(
+      _collectionPage([newAccountRecord], page: 0, hasMore: true),
+    );
+    await refreshing;
+    if (repository.requestedPages.contains(1)) {
+      oldSecondPage.complete(
+        _collectionPage([duplicateCollectionRecord], page: 1, hasMore: false),
+      );
+    }
+    await loadingMore;
+
+    final state = container.read(collectionControllerProvider);
+    expect(repository.requestedPages, [0, 0]);
+    expect(state.articles, [newAccountRecord]);
+    expect(state.nextPage, 1);
+  });
+
   test('下一页请求期间取消收藏不会被旧响应恢复', () async {
     final secondPage = Completer<ArticlePage>();
     final repository = _FakeCollectionRepository(

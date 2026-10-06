@@ -31,7 +31,7 @@ class ArticleListController extends Notifier<ArticleListState> {
   }
 
   Future<void> loadNextPage() async {
-    if (state.isLoading || !state.hasMore) return;
+    if (state.isLoading || state.isRefreshing || !state.hasMore) return;
     final generation = _requestGeneration;
     final page = state.nextPage;
     state = state.copyWith(isLoading: true, error: null);
@@ -51,7 +51,11 @@ class ArticleListController extends Notifier<ArticleListState> {
   Future<String?> refresh() async {
     final previous = state;
     final generation = ++_requestGeneration;
-    state = state.copyWith(isLoading: previous.pages.isEmpty, error: null);
+    state = state.copyWith(
+      isLoading: previous.pages.isEmpty,
+      isRefreshing: true,
+      error: null,
+    );
     try {
       final result = await ref
           .read(articleRepositoryProvider)
@@ -63,6 +67,7 @@ class ArticleListController extends Notifier<ArticleListState> {
       if (!_isCurrent(generation)) return null;
       state = previous.copyWith(
         isLoading: false,
+        isRefreshing: false,
         error: previous.pages.isEmpty ? error : null,
       );
       return error.toString();
@@ -99,6 +104,7 @@ class ArticleListController extends Notifier<ArticleListState> {
       nextPage: requestedPage + 1,
       hasMore: result.hasMore,
       isLoading: false,
+      isRefreshing: false,
       error: null,
     );
   }

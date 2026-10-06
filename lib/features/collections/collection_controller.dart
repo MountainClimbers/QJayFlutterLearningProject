@@ -119,7 +119,12 @@ class CollectionController extends Notifier<CollectionState> {
 
   Future<void> loadNextPage() async {
     final identity = state.identity;
-    if (identity == null || state.isLoading || !state.hasMore) return;
+    if (identity == null ||
+        state.isLoading ||
+        state.isRefreshing ||
+        !state.hasMore) {
+      return;
+    }
     final identityEpoch = _identityEpoch;
     final requestGeneration = _requestGeneration;
     final mutationVersionAtStart = _mutationVersion;

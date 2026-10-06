@@ -136,6 +136,40 @@ void main() {
     expect(state.nextPage, 1);
     expect(state.hasMore, isFalse);
   });
+
+  test('刷新进行中不会启动基于旧页码的分页请求', () async {
+    final refreshPage = Completer<ArticlePage>();
+    final oldSecondPage = Completer<ArticlePage>();
+    var firstPageRequests = 0;
+    final repository = _FakePagedArticleRepository((page, callCount) async {
+      if (page == 1) return oldSecondPage.future;
+      firstPageRequests += 1;
+      return firstPageRequests == 1
+          ? _page([firstArticle], page: 0, hasMore: true)
+          : refreshPage.future;
+    });
+    final container = _createContainer(repository);
+    addTearDown(container.dispose);
+    final controller = container.read(articleListControllerProvider.notifier);
+
+    await _waitForRequest(container);
+    final refreshing = controller.refresh();
+    await Future<void>.delayed(Duration.zero);
+    final loadingMore = controller.loadNextPage();
+    await Future<void>.delayed(Duration.zero);
+
+    refreshPage.complete(_page([refreshedArticle], page: 0, hasMore: true));
+    await refreshing;
+    if (repository.requestedPages.contains(1)) {
+      oldSecondPage.complete(_page([secondArticle], page: 1, hasMore: false));
+    }
+    await loadingMore;
+
+    final state = container.read(articleListControllerProvider);
+    expect(repository.requestedPages, [0, 0]);
+    expect(state.articles, [refreshedArticle]);
+    expect(state.nextPage, 1);
+  });
 }
 
 ProviderContainer _createContainer(ArticleRepository repository) {
