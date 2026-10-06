@@ -217,7 +217,7 @@ return $default(_that.pages,_that.nextPage,_that.hasMore,_that.isLoading,_that.i
 
 class _ArticleListState extends ArticleListState {
   const _ArticleListState({ List<List<Article>> pages = const <List<Article>>[], this.nextPage = 0, this.hasMore = true, this.isLoading = false, this.isRefreshing = false, this.error}): _pages = pages,super._();
-  
+
 
  final  List<List<Article>> _pages;
 @override@JsonKey() List<List<Article>> get pages {
