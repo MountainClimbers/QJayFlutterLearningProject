@@ -18,6 +18,7 @@ final collectionControllerProvider =
 
 class CollectionController extends Notifier<CollectionState> {
   final Set<String> _pendingOperations = {};
+  bool _needsServerRecordRefresh = false;
 
   @override
   CollectionState build() {
@@ -75,6 +76,9 @@ class CollectionController extends Notifier<CollectionState> {
                 .where((item) => _key(item, fromCollection: true) != key)
                 .toList(growable: false);
       state = state.copyWith(articles: articles, confirmed: confirmed);
+      if (!fromCollection && !wasCollected) {
+        _needsServerRecordRefresh = true;
+      }
     } finally {
       _pendingOperations.remove(operationKey);
       if (state.identity == identity) {
@@ -93,6 +97,11 @@ class CollectionController extends Notifier<CollectionState> {
     } catch (error) {
       return error.toString();
     }
+  }
+
+  Future<String?> refreshIfNeeded() {
+    if (!_needsServerRecordRefresh) return Future.value();
+    return refresh();
   }
 
   Future<void> _load(String identity, {bool showLoading = true}) async {
@@ -121,6 +130,7 @@ class CollectionController extends Notifier<CollectionState> {
         isRefreshing: false,
         errorMessage: null,
       );
+      _needsServerRecordRefresh = false;
     } catch (error) {
       if (state.identity == identity) {
         state = state.copyWith(

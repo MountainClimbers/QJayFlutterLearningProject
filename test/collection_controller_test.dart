@@ -79,6 +79,23 @@ void main() {
     expect(controller.isCollected(regularArticle), isTrue);
   });
 
+  test('首页新增收藏后进入收藏页会按需重新获取收藏记录', () async {
+    final repository = _FakeCollectionRepository();
+    final container = await _createContainer(repository);
+    addTearDown(container.dispose);
+    await _waitForCollections(container);
+    final controller = container.read(collectionControllerProvider.notifier);
+
+    await controller.toggle(regularArticle);
+    repository.collections = [collectionRecord];
+    await controller.refreshIfNeeded();
+
+    expect(repository.fetchCallCount, 2);
+    expect(container.read(collectionControllerProvider).articles, [
+      collectionRecord,
+    ]);
+  });
+
   test('收藏页取消使用记录编号和原文章编号并移除记录', () async {
     final repository = _FakeCollectionRepository(
       collections: [collectionRecord],
@@ -127,10 +144,11 @@ class _FakeCollectionRepository implements CollectionRepository {
     this.collectError,
   });
 
-  final List<Article> collections;
+  List<Article> collections;
   final Future<void> Function(int articleId)? collectHandler;
   final Object? collectError;
   int collectCallCount = 0;
+  int fetchCallCount = 0;
   int? lastRemovedRecordId;
   int? lastRemovedOriginId;
 
@@ -142,7 +160,10 @@ class _FakeCollectionRepository implements CollectionRepository {
   }
 
   @override
-  Future<List<Article>> fetchCollections() async => collections;
+  Future<List<Article>> fetchCollections() async {
+    fetchCallCount += 1;
+    return collections;
+  }
 
   @override
   Future<void> removeCollection({

@@ -12,7 +12,7 @@ import 'collection_controller.dart';
 typedef CollectionArticleDetailPageBuilder = Widget Function(Article article);
 typedef CollectionLoginPageBuilder = Widget Function();
 
-class CollectionPage extends ConsumerWidget {
+class CollectionPage extends ConsumerStatefulWidget {
   const CollectionPage({
     super.key,
     this.articleDetailPageBuilder,
@@ -23,7 +23,20 @@ class CollectionPage extends ConsumerWidget {
   final CollectionLoginPageBuilder? loginPageBuilder;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CollectionPage> createState() => _CollectionPageState();
+}
+
+class _CollectionPageState extends ConsumerState<CollectionPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshAfterLocalCollection();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final authState = ref.watch(authControllerProvider);
     final currentUser = switch (authState) {
       AsyncData(:final value) => value,
@@ -40,19 +53,30 @@ class CollectionPage extends ConsumerWidget {
           onLogin: () => _openLogin(context),
         ),
         _ => _CollectionBody(
-          articleDetailPageBuilder: articleDetailPageBuilder,
+          articleDetailPageBuilder: widget.articleDetailPageBuilder,
         ),
       },
     );
   }
 
   Future<void> _openLogin(BuildContext context) async {
-    final customBuilder = loginPageBuilder;
+    final customBuilder = widget.loginPageBuilder;
     if (customBuilder != null) {
       await Navigator.of(context)
           .push<LoginUser>(MaterialPageRoute(builder: (_) => customBuilder()));
     } else {
       await context.pushNamed<LoginUser>(accountRouteName);
+    }
+  }
+
+  Future<void> _refreshAfterLocalCollection() async {
+    final message = await ref
+        .read(collectionControllerProvider.notifier)
+        .refreshIfNeeded();
+    if (message != null && mounted) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(message)));
     }
   }
 }
