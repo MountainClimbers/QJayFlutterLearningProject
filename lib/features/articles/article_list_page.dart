@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/login_page.dart';
 import '../auth/auth_controller.dart';
+import '../collections/collection_controller.dart';
 import '../../models/article.dart';
 import '../../models/login_user.dart';
 import 'article_card.dart';
@@ -66,6 +67,7 @@ class ArticleListPage extends ConsumerWidget {
           articleDetailPageBuilder:
               articleDetailPageBuilder ??
               (article) => ArticleDetailPage(article: article),
+          onLoginRequired: () => _openLogin(context, ref),
         ),
         AsyncError(:final error) => _ErrorView(
           message: error.toString(),
@@ -237,13 +239,19 @@ class _ArticleList extends ConsumerWidget {
   const _ArticleList({
     required this.articles,
     required this.articleDetailPageBuilder,
+    required this.onLoginRequired,
   });
 
   final List<Article> articles;
   final ArticleDetailPageBuilder articleDetailPageBuilder;
+  final Future<void> Function() onLoginRequired;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(collectionControllerProvider);
+    final collectionController = ref.read(
+      collectionControllerProvider.notifier,
+    );
     return RefreshIndicator(
       onRefresh: () async {
         final message = await ref
@@ -273,6 +281,29 @@ class _ArticleList extends ConsumerWidget {
                 final article = articles[index];
                 return ArticleCard(
                   article: article,
+                  collected: collectionController.isCollected(article),
+                  busy: collectionController.isBusy(article),
+                  onCollect: () async {
+                    final user = switch (ref.read(authControllerProvider)) {
+                      AsyncData(:final value) => value,
+                      _ => null,
+                    };
+                    if (user == null) {
+                      await onLoginRequired();
+                      return;
+                    }
+                    try {
+                      await collectionController.toggle(article);
+                    } catch (error) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context)
+                          ..hideCurrentSnackBar()
+                          ..showSnackBar(
+                            SnackBar(content: Text(error.toString())),
+                          );
+                      }
+                    }
+                  },
                   onTap: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(

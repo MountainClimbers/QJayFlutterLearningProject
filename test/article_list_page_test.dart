@@ -3,13 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:qjay_flutter_learning/features/articles/article_card.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_controller.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_page.dart';
 import 'package:qjay_flutter_learning/features/auth/auth_controller.dart';
+import 'package:qjay_flutter_learning/features/collections/collection_controller.dart';
 import 'package:qjay_flutter_learning/models/article.dart';
 import 'package:qjay_flutter_learning/models/login_user.dart';
 import 'package:qjay_flutter_learning/services/article_service.dart';
 import 'package:qjay_flutter_learning/services/auth_service.dart';
+import 'package:qjay_flutter_learning/services/collection_service.dart';
 
 void main() {
   const firstArticle = Article(
@@ -27,6 +30,50 @@ void main() {
     link: 'https://example.com/2',
     author: '小明',
   );
+
+  testWidgets('文章卡片展示收藏状态并只触发收藏回调', (tester) async {
+    var openCount = 0;
+    var collectCount = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ArticleCard(
+            article: firstArticle,
+            collected: true,
+            onTap: () => openCount += 1,
+            onCollect: () => collectCount += 1,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('取消收藏'));
+    await tester.pump();
+
+    expect(collectCount, 1);
+    expect(openCount, 0);
+  });
+
+  testWidgets('文章卡片收藏请求中显示进度并禁止重复点击', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ArticleCard(
+            article: firstArticle,
+            busy: true,
+            onTap: () {},
+            onCollect: () {},
+          ),
+        ),
+      ),
+    );
+
+    final button = tester.widget<IconButton>(
+      find.byKey(const ValueKey('article-collect-1')),
+    );
+    expect(button.onPressed, isNull);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
 
   testWidgets('Riverpod 加载成功后显示文章的主要信息', (tester) async {
     final repository = _SequenceRepository([
@@ -95,6 +142,45 @@ void main() {
     expect(find.text('测试登录页'), findsOneWidget);
     expect(find.text('登录表单'), findsOneWidget);
     expect(find.byType(BackButton), findsOneWidget);
+  });
+
+  testWidgets('未登录点击收藏按钮后进入登录注册页面', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+
+    await tester.pumpWidget(_testApp(repository));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('收藏'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('登录 WanAndroid'), findsOneWidget);
+    expect(find.text('没有账号，去注册'), findsOneWidget);
+  });
+
+  testWidgets('已登录点击收藏按钮后更新为已收藏', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+    final collectionRepository = _FakeCollectionRepository();
+
+    await tester.pumpWidget(
+      _testApp(
+        repository,
+        authRepository: _FakeAuthRepository(
+          restoredUser: const LoginUser(id: 7, username: 'MountainClimbers'),
+        ),
+        collectionRepository: collectionRepository,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('收藏'));
+    await tester.pumpAndSettle();
+
+    expect(collectionRepository.lastCollectedArticleId, 1);
+    expect(find.byTooltip('取消收藏'), findsOneWidget);
   });
 
   testWidgets('恢复登录状态后在首页展示当前用户', (tester) async {
@@ -337,12 +423,16 @@ Widget _testApp(
   Widget Function(Article article)? articleDetailPageBuilder,
   Widget Function()? loginPageBuilder,
   AuthRepository? authRepository,
+  CollectionRepository? collectionRepository,
 }) {
   return ProviderScope(
     overrides: [
       articleRepositoryProvider.overrideWithValue(repository),
       authRepositoryProvider.overrideWith(
         (ref) async => authRepository ?? _FakeAuthRepository(),
+      ),
+      collectionRepositoryProvider.overrideWithValue(
+        collectionRepository ?? _FakeCollectionRepository(),
       ),
     ],
     child: MaterialApp(
@@ -352,6 +442,27 @@ Widget _testApp(
       ),
     ),
   );
+}
+
+class _FakeCollectionRepository implements CollectionRepository {
+  int? lastCollectedArticleId;
+
+  @override
+  Future<void> collect(int articleId) async {
+    lastCollectedArticleId = articleId;
+  }
+
+  @override
+  Future<List<Article>> fetchCollections() async => const [];
+
+  @override
+  Future<void> removeCollection({
+    required int recordId,
+    required int originId,
+  }) async {}
+
+  @override
+  Future<void> uncollect(int articleId) async {}
 }
 
 class _SequenceRepository implements ArticleRepository {

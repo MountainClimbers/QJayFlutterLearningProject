@@ -217,29 +217,29 @@ git commit -m "功能：登录页面支持账号注册"
 - Produces: `isCollected`、`isBusy`、`toggle`、`refresh`。
 - Consumes: `authControllerProvider` 与 `CollectionRepository`。
 
-- [ ] **Step 1: 编写控制器失败测试**
+- [x] **Step 1: 编写控制器失败测试**
 
 覆盖登录后加载收藏、收藏/取消收藏路径、失败保持状态、同一文章重复点击只发送一次请求、账号变化清空旧状态。
 
-- [ ] **Step 2: 编写文章卡片失败测试**
+- [x] **Step 2: 编写文章卡片失败测试**
 
 覆盖收藏按钮、忙碌进度、未登录点击进入账号页、已登录点击调用 toggle、失败显示 SnackBar。
 
-- [ ] **Step 3: 运行测试确认失败**
+- [x] **Step 3: 运行测试确认失败**
 
 Run: `flutter test test/collection_controller_test.dart test/article_list_page_test.dart`
 Expected: FAIL，收藏控制器和按钮尚不存在。
 
-- [ ] **Step 4: 实现收藏状态和卡片连接**
+- [x] **Step 4: 实现收藏状态和卡片连接**
 
 控制器以 `article:{originId}` 或 `record:{recordId}` 为同步键；每次异步完成前核对当前用户身份。ArticleCard 只接收 `collected`、`busy` 和 `onCollect`，网络与导航由列表页处理。
 
-- [ ] **Step 5: 运行测试确认通过**
+- [x] **Step 5: 运行测试确认通过**
 
 Run: `flutter test test/collection_controller_test.dart test/article_list_page_test.dart`
 Expected: PASS。
 
-- [ ] **Step 6: 中文提交**
+- [x] **Step 6: 中文提交**
 
 ```bash
 git commit -m "功能：文章列表支持登录态收藏"

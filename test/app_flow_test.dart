@@ -4,10 +4,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_controller.dart';
 import 'package:qjay_flutter_learning/features/articles/article_list_page.dart';
 import 'package:qjay_flutter_learning/features/auth/auth_controller.dart';
+import 'package:qjay_flutter_learning/features/collections/collection_controller.dart';
 import 'package:qjay_flutter_learning/models/article.dart';
 import 'package:qjay_flutter_learning/models/login_user.dart';
 import 'package:qjay_flutter_learning/services/article_service.dart';
 import 'package:qjay_flutter_learning/services/auth_service.dart';
+import 'package:qjay_flutter_learning/services/collection_service.dart';
 
 void main() {
   testWidgets('文章详情导航与全局登录状态组成完整流程', (tester) async {
@@ -25,6 +27,9 @@ void main() {
             _FlowArticleRepository(article),
           ),
           authRepositoryProvider.overrideWith((ref) async => authRepository),
+          collectionRepositoryProvider.overrideWithValue(
+            _FlowCollectionRepository(),
+          ),
         ],
         child: MaterialApp(
           home: ArticleListPage(
@@ -57,6 +62,23 @@ void main() {
     expect(find.byTooltip('登录'), findsOneWidget);
     expect(find.text('Flutter 五天复习'), findsOneWidget);
   });
+}
+
+class _FlowCollectionRepository implements CollectionRepository {
+  @override
+  Future<void> collect(int articleId) async {}
+
+  @override
+  Future<List<Article>> fetchCollections() async => const [];
+
+  @override
+  Future<void> removeCollection({
+    required int recordId,
+    required int originId,
+  }) async {}
+
+  @override
+  Future<void> uncollect(int articleId) async {}
 }
 
 class _FlowArticleRepository implements ArticleRepository {

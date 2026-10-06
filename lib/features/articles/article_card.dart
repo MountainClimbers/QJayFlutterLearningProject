@@ -4,10 +4,20 @@ import '../../models/article.dart';
 
 /// 只负责展示一篇文章，页面状态和网络请求交给外层处理。
 class ArticleCard extends StatelessWidget {
-  const ArticleCard({super.key, required this.article, required this.onTap});
+  const ArticleCard({
+    super.key,
+    required this.article,
+    required this.onTap,
+    this.onCollect,
+    this.collected,
+    this.busy = false,
+  });
 
   final Article article;
   final VoidCallback onTap;
+  final VoidCallback? onCollect;
+  final bool? collected;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +62,24 @@ class ArticleCard extends StatelessWidget {
                       article.displayDate,
                       style: Theme.of(context).textTheme.labelSmall,
                     ),
+                  IconButton(
+                    key: ValueKey('article-collect-${article.id}'),
+                    tooltip: (collected ?? article.collected) ? '取消收藏' : '收藏',
+                    onPressed: busy ? null : onCollect,
+                    icon: busy
+                        ? const SizedBox.square(
+                            dimension: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            (collected ?? article.collected)
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            color: (collected ?? article.collected)
+                                ? colors.primary
+                                : null,
+                          ),
+                  ),
                 ],
               ),
               if (article.displayChapter.isNotEmpty) ...[
