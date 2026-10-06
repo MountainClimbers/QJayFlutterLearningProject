@@ -1,10 +1,13 @@
 import 'package:dio/dio.dart';
 
-import '../models/article.dart';
+import '../models/article_page.dart';
 import 'wan_android_client.dart';
 
 abstract interface class CollectionRepository {
-  Future<List<Article>> fetchCollections();
+  Future<ArticlePage> fetchCollections({
+    required int page,
+    int pageSize = wanAndroidPageSize,
+  });
 
   Future<void> collect(int articleId);
 
@@ -24,20 +27,25 @@ class CollectionService implements CollectionRepository {
   final Dio _dio;
 
   @override
-  Future<List<Article>> fetchCollections() {
+  Future<ArticlePage> fetchCollections({
+    required int page,
+    int pageSize = wanAndroidPageSize,
+  }) {
     return _guard(() async {
       final response = await _dio.get<Map<String, dynamic>>(
-        '/lg/collect/list/0/json',
+        '/lg/collect/list/$page/json',
+        queryParameters: {'page_size': pageSize},
       );
       final data = _responseData(response, fallbackMessage: '收藏列表加载失败');
-      final values = data is Map<String, dynamic> ? data['datas'] : null;
-      if (values is! List) {
+      if (data is! Map<String, dynamic> || data['datas'] is! List) {
         throw const CollectionException('服务器返回的数据格式不正确');
       }
-      return values
-          .whereType<Map<String, dynamic>>()
-          .map((json) => Article.fromJson(json).copyWith(collected: true))
-          .toList(growable: false);
+      final pageData = ArticlePage.fromJson(data);
+      return pageData.copyWith(
+        datas: pageData.datas
+            .map((article) => article.copyWith(collected: true))
+            .toList(growable: false),
+      );
     });
   }
 

@@ -19,15 +19,19 @@ final articleListControllerProvider =
 /// AsyncNotifier 统一持有加载、数据和错误三种异步状态。
 class ArticleListController extends AsyncNotifier<List<Article>> {
   @override
-  Future<List<Article>> build() {
-    return ref.watch(articleRepositoryProvider).fetchArticles();
+  Future<List<Article>> build() async {
+    final page = await ref
+        .watch(articleRepositoryProvider)
+        .fetchArticles(page: 0);
+    return page.datas;
   }
 
   /// 下拉刷新时保留当前列表，RefreshIndicator 自己展示刷新进度。
   Future<String?> refresh() async {
     final repository = ref.read(articleRepositoryProvider);
     try {
-      state = AsyncData(await repository.fetchArticles());
+      final page = await repository.fetchArticles(page: 0);
+      state = AsyncData(page.datas);
       return null;
     } catch (error) {
       // 刷新失败时保留旧的 AsyncData，让用户仍然可以阅读当前列表。

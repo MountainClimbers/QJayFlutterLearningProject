@@ -4,20 +4,19 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:qjay_flutter_learning/services/collection_service.dart';
-import 'package:qjay_flutter_learning/services/wan_android_client.dart';
 
 void main() {
   test('收藏服务读取收藏列表并保留记录编号和原文章编号', () async {
+    late RequestOptions request;
     final dio = _stubDio((options) {
-      expect(options.method, 'GET');
-      expect(
-        options.uri.toString(),
-        '$wanAndroidBaseUrl/lg/collect/list/0/json',
-      );
+      request = options;
       return _jsonResponse({
         'errorCode': 0,
         'errorMsg': '',
         'data': {
+          'curPage': 4,
+          'pageCount': 6,
+          'over': false,
           'datas': [
             {
               'id': 901,
@@ -30,12 +29,16 @@ void main() {
       });
     });
 
-    final articles = await CollectionService(dio: dio).fetchCollections();
+    final page = await CollectionService(dio: dio).fetchCollections(page: 3);
 
-    expect(articles, hasLength(1));
-    expect(articles.single.id, 901);
-    expect(articles.single.originId, 42);
-    expect(articles.single.collected, isTrue);
+    expect(request.method, 'GET');
+    expect(request.uri.path, '/lg/collect/list/3/json');
+    expect(request.uri.queryParameters['page_size'], '10');
+    expect(page.datas, hasLength(1));
+    expect(page.datas.single.id, 901);
+    expect(page.datas.single.originId, 42);
+    expect(page.datas.single.collected, isTrue);
+    expect(page.hasMore, isTrue);
   });
 
   test('收藏服务使用原文章编号收藏和取消收藏', () async {

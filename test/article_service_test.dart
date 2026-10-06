@@ -8,15 +8,16 @@ import 'package:qjay_flutter_learning/services/article_service.dart';
 void main() {
   test('Dio 文章服务请求正确路径并转换文章列表', () async {
     // 如果 baseUrl、请求路径或 data.datas 解析错误，这个测试就会失败。
+    late RequestOptions request;
     final dio = _stubDio((options) {
-      expect(
-        options.uri.toString(),
-        'https://www.wanandroid.com/article/list/0/json',
-      );
+      request = options;
       return _jsonResponse({
         'errorCode': 0,
         'errorMsg': '',
         'data': {
+          'curPage': 3,
+          'pageCount': 5,
+          'over': false,
           'datas': [
             {
               'id': 7,
@@ -32,11 +33,14 @@ void main() {
       });
     });
 
-    final articles = await ArticleService(dio: dio).fetchArticles();
+    final page = await ArticleService(dio: dio).fetchArticles(page: 2);
 
-    expect(articles, hasLength(1));
-    expect(articles.single.id, 7);
-    expect(articles.single.title, '用 Flutter 写 iOS');
+    expect(request.uri.path, '/article/list/2/json');
+    expect(request.uri.queryParameters['page_size'], '10');
+    expect(page.datas, hasLength(1));
+    expect(page.datas.single.id, 7);
+    expect(page.datas.single.title, '用 Flutter 写 iOS');
+    expect(page.hasMore, isTrue);
   });
 
   test('Dio 文章服务把业务错误转换成可读异常', () async {
@@ -45,7 +49,7 @@ void main() {
     );
 
     expect(
-      () => ArticleService(dio: dio).fetchArticles(),
+      () => ArticleService(dio: dio).fetchArticles(page: 0),
       throwsA(
         isA<ArticleLoadException>().having(
           (error) => error.message,
@@ -60,7 +64,7 @@ void main() {
     final dio = _stubDio((_) => ResponseBody.fromString('服务错误', 503));
 
     expect(
-      () => ArticleService(dio: dio).fetchArticles(),
+      () => ArticleService(dio: dio).fetchArticles(page: 0),
       throwsA(
         isA<ArticleLoadException>().having(
           (error) => error.message,
@@ -80,7 +84,7 @@ void main() {
     });
 
     expect(
-      () => ArticleService(dio: dio).fetchArticles(),
+      () => ArticleService(dio: dio).fetchArticles(page: 0),
       throwsA(
         isA<ArticleLoadException>().having(
           (error) => error.message,
@@ -103,7 +107,7 @@ void main() {
     );
 
     expect(
-      () => ArticleService(dio: dio).fetchArticles(),
+      () => ArticleService(dio: dio).fetchArticles(page: 0),
       throwsA(
         isA<ArticleLoadException>().having(
           (error) => error.message,

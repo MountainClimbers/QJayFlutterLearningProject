@@ -5,6 +5,7 @@ import 'package:qjay_flutter_learning/features/auth/auth_controller.dart';
 import 'package:qjay_flutter_learning/features/collections/collection_controller.dart';
 import 'package:qjay_flutter_learning/features/collections/collection_page.dart';
 import 'package:qjay_flutter_learning/models/article.dart';
+import 'package:qjay_flutter_learning/models/article_page.dart';
 import 'package:qjay_flutter_learning/models/login_user.dart';
 import 'package:qjay_flutter_learning/services/auth_service.dart';
 import 'package:qjay_flutter_learning/services/collection_service.dart';
@@ -176,13 +177,16 @@ class _FakeCollectionRepository implements CollectionRepository {
   Future<void> collect(int articleId) async {}
 
   @override
-  Future<List<Article>> fetchCollections() async {
+  Future<ArticlePage> fetchCollections({
+    required int page,
+    int pageSize = wanAndroidPageSize,
+  }) async {
     fetchCallCount += 1;
     if (fetchError case final Object error) throw error;
     if (fetchCallCount > 1) {
       if (refreshError case final Object error) throw error;
     }
-    return collections;
+    return ArticlePage(datas: collections);
   }
 
   @override

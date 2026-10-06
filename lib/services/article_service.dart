@@ -1,11 +1,14 @@
 import 'package:dio/dio.dart';
 
-import '../models/article.dart';
+import '../models/article_page.dart';
 import 'wan_android_client.dart';
 
 /// 状态层只依赖这个接口，因此测试和未来的本地缓存都能替换网络实现。
 abstract interface class ArticleRepository {
-  Future<List<Article>> fetchArticles();
+  Future<ArticlePage> fetchArticles({
+    required int page,
+    int pageSize = wanAndroidPageSize,
+  });
 }
 
 /// 使用 Dio 统一管理服务地址、超时与网络异常。
@@ -20,10 +23,14 @@ class ArticleService implements ArticleRepository {
   final Dio _dio;
 
   @override
-  Future<List<Article>> fetchArticles() async {
+  Future<ArticlePage> fetchArticles({
+    required int page,
+    int pageSize = wanAndroidPageSize,
+  }) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
-        '/article/list/0/json',
+        '/article/list/$page/json',
+        queryParameters: {'page_size': pageSize},
       );
       final root = response.data;
       if (root == null) {
@@ -39,15 +46,11 @@ class ArticleService implements ArticleRepository {
       }
 
       final data = root['data'];
-      final values = data is Map<String, dynamic> ? data['datas'] : null;
-      if (values is! List) {
+      if (data is! Map<String, dynamic> || data['datas'] is! List) {
         throw const ArticleLoadException('服务器返回的数据格式不正确');
       }
 
-      return values
-          .whereType<Map<String, dynamic>>()
-          .map(Article.fromJson)
-          .toList(growable: false);
+      return ArticlePage.fromJson(data);
     } on ArticleLoadException {
       rethrow;
     } on DioException catch (error) {

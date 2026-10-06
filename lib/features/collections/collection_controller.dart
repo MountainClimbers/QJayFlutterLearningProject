@@ -147,7 +147,8 @@ class CollectionController extends Notifier<CollectionState> {
     try {
       final records = await ref
           .read(collectionRepositoryProvider)
-          .fetchCollections();
+          .fetchCollections(page: 0)
+          .then((page) => page.datas);
       if (!_isCurrentRequest(identity, requestGeneration)) return;
       final serverKeys = <String>{
         for (final record in records) _key(record, fromCollection: true),

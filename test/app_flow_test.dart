@@ -6,6 +6,7 @@ import 'package:qjay_flutter_learning/features/articles/article_list_page.dart';
 import 'package:qjay_flutter_learning/features/auth/auth_controller.dart';
 import 'package:qjay_flutter_learning/features/collections/collection_controller.dart';
 import 'package:qjay_flutter_learning/models/article.dart';
+import 'package:qjay_flutter_learning/models/article_page.dart';
 import 'package:qjay_flutter_learning/models/login_user.dart';
 import 'package:qjay_flutter_learning/services/article_service.dart';
 import 'package:qjay_flutter_learning/services/auth_service.dart';
@@ -69,7 +70,10 @@ class _FlowCollectionRepository implements CollectionRepository {
   Future<void> collect(int articleId) async {}
 
   @override
-  Future<List<Article>> fetchCollections() async => const [];
+  Future<ArticlePage> fetchCollections({
+    required int page,
+    int pageSize = wanAndroidPageSize,
+  }) async => const ArticlePage();
 
   @override
   Future<void> removeCollection({
@@ -87,7 +91,10 @@ class _FlowArticleRepository implements ArticleRepository {
   final Article article;
 
   @override
-  Future<List<Article>> fetchArticles() async => [article];
+  Future<ArticlePage> fetchArticles({
+    required int page,
+    int pageSize = wanAndroidPageSize,
+  }) async => ArticlePage(datas: [article]);
 }
 
 class _FlowAuthRepository implements AuthRepository {

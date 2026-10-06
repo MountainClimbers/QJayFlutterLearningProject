@@ -10,6 +10,7 @@ import 'package:qjay_flutter_learning/features/auth/auth_controller.dart';
 import 'package:qjay_flutter_learning/features/auth/login_page.dart';
 import 'package:qjay_flutter_learning/features/collections/collection_controller.dart';
 import 'package:qjay_flutter_learning/models/article.dart';
+import 'package:qjay_flutter_learning/models/article_page.dart';
 import 'package:qjay_flutter_learning/models/login_user.dart';
 import 'package:qjay_flutter_learning/services/article_service.dart';
 import 'package:qjay_flutter_learning/services/auth_service.dart';
@@ -508,7 +509,10 @@ class _FakeCollectionRepository implements CollectionRepository {
   }
 
   @override
-  Future<List<Article>> fetchCollections() async => const [];
+  Future<ArticlePage> fetchCollections({
+    required int page,
+    int pageSize = wanAndroidPageSize,
+  }) async => const ArticlePage();
 
   @override
   Future<void> removeCollection({
@@ -527,9 +531,13 @@ class _SequenceRepository implements ArticleRepository {
   int callCount = 0;
 
   @override
-  Future<List<Article>> fetchArticles() {
+  Future<ArticlePage> fetchArticles({
+    required int page,
+    int pageSize = wanAndroidPageSize,
+  }) async {
     final index = callCount++;
-    return responses[index]();
+    final articles = await responses[index]();
+    return ArticlePage(datas: articles);
   }
 }
 
