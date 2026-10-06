@@ -97,6 +97,9 @@ class _ArticleRepository implements ArticleRepository {
 
 class _AuthRepository implements AuthRepository {
   @override
+  Future<void> clearSession() async {}
+
+  @override
   Future<LoginUser> login({
     required String username,
     required String password,

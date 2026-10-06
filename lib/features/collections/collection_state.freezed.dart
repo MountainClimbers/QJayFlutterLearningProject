@@ -219,7 +219,7 @@ return $default(_that.identity,_that.articles,_that.confirmed,_that.busyKeys,_th
 
 class _CollectionState implements CollectionState {
   const _CollectionState({this.identity,  List<Article> articles = const <Article>[],  Map<String, bool> confirmed = const <String, bool>{},  Set<String> busyKeys = const <String>{}, this.isLoading = false, this.isRefreshing = false, this.errorMessage}): _articles = articles,_confirmed = confirmed,_busyKeys = busyKeys;
-  
+
 
 @override final  String? identity;
  final  List<Article> _articles;

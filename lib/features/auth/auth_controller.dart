@@ -97,6 +97,18 @@ class AuthController extends AsyncNotifier<LoginUser?> {
     });
   }
 
+  Future<void> expireSession() {
+    return _runSerialized(() async {
+      await _initialRestoreCompleted.future;
+      try {
+        final repository = await ref.read(authRepositoryProvider.future);
+        await repository.clearSession();
+      } finally {
+        state = const AsyncData<LoginUser?>(null);
+      }
+    });
+  }
+
   Future<T> _runSerialized<T>(Future<T> Function() operation) {
     final result = Completer<T>();
     _authenticationQueue = _authenticationQueue.then((_) async {

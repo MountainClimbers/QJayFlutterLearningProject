@@ -94,6 +94,9 @@ class _FlowAuthRepository implements AuthRepository {
   int logoutCallCount = 0;
 
   @override
+  Future<void> clearSession() async {}
+
+  @override
   Future<LoginUser> login({
     required String username,
     required String password,

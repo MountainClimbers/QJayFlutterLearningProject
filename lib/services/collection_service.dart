@@ -84,11 +84,16 @@ class CollectionService implements CollectionRepository {
     if (rawErrorCode is! num) {
       throw const CollectionException('服务器返回的数据无法解析');
     }
-    if (rawErrorCode.toInt() != 0) {
+    final errorCode = rawErrorCode.toInt();
+    if (errorCode != 0) {
       final message = root['errorMsg']?.toString().trim();
-      throw CollectionException(
-        message == null || message.isEmpty ? fallbackMessage : message,
-      );
+      final resolvedMessage = message == null || message.isEmpty
+          ? fallbackMessage
+          : message;
+      if (errorCode == -1001) {
+        throw CollectionAuthenticationException(resolvedMessage);
+      }
+      throw CollectionException(resolvedMessage);
     }
     return root['data'];
   }
@@ -120,4 +125,8 @@ class CollectionException implements Exception {
 
   @override
   String toString() => message;
+}
+
+class CollectionAuthenticationException extends CollectionException {
+  const CollectionAuthenticationException(super.message);
 }

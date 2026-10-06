@@ -95,6 +95,47 @@ void main() {
     expect(find.text('测试收藏网络失败'), findsOneWidget);
     expect(find.text('重试'), findsOneWidget);
   });
+
+  testWidgets('收藏列表判定会话过期时回到登录提示', (tester) async {
+    await tester.pumpWidget(
+      _testApp(
+        authRepository: _FakeAuthRepository(
+          restoredUser: const LoginUser(id: 7, username: 'MountainClimbers'),
+        ),
+        collectionRepository: _FakeCollectionRepository(
+          fetchError: const CollectionAuthenticationException('请先登录'),
+        ),
+        loginPageBuilder: () => const Scaffold(body: Text('登录注册测试页')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('登录后查看和同步收藏'), findsOneWidget);
+    expect(find.text('去登录'), findsOneWidget);
+    expect(find.text('请先登录'), findsNothing);
+  });
+
+  testWidgets('下拉刷新失败时保留原收藏并显示原因', (tester) async {
+    final repository = _FakeCollectionRepository(
+      collections: [record],
+      refreshError: const CollectionException('测试刷新失败'),
+    );
+    await tester.pumpWidget(
+      _testApp(
+        authRepository: _FakeAuthRepository(
+          restoredUser: const LoginUser(id: 7, username: 'MountainClimbers'),
+        ),
+        collectionRepository: repository,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.drag(find.byType(ListView), const Offset(0, 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('我的 Flutter 收藏'), findsOneWidget);
+    expect(find.text('测试刷新失败'), findsOneWidget);
+  });
 }
 
 Widget _testApp({
@@ -118,10 +159,16 @@ Widget _testApp({
 }
 
 class _FakeCollectionRepository implements CollectionRepository {
-  _FakeCollectionRepository({this.collections = const [], this.fetchError});
+  _FakeCollectionRepository({
+    this.collections = const [],
+    this.fetchError,
+    this.refreshError,
+  });
 
   final List<Article> collections;
   final Object? fetchError;
+  final Object? refreshError;
+  int fetchCallCount = 0;
   int? lastRemovedRecordId;
   int? lastRemovedOriginId;
 
@@ -130,7 +177,11 @@ class _FakeCollectionRepository implements CollectionRepository {
 
   @override
   Future<List<Article>> fetchCollections() async {
+    fetchCallCount += 1;
     if (fetchError case final Object error) throw error;
+    if (fetchCallCount > 1) {
+      if (refreshError case final Object error) throw error;
+    }
     return collections;
   }
 
@@ -151,6 +202,9 @@ class _FakeAuthRepository implements AuthRepository {
   _FakeAuthRepository({this.restoredUser});
 
   final LoginUser? restoredUser;
+
+  @override
+  Future<void> clearSession() async {}
 
   @override
   Future<LoginUser> login({

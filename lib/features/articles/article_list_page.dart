@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../models/article.dart';
 import '../../models/login_user.dart';
 import '../../router/route_names.dart';
+import '../../services/collection_service.dart';
 import '../auth/auth_controller.dart';
 import '../collections/collection_controller.dart';
 import 'article_card.dart';
@@ -317,6 +318,10 @@ class _ArticleList extends ConsumerWidget {
                     try {
                       await collectionController.toggle(article);
                     } catch (error) {
+                      if (error is CollectionAuthenticationException) {
+                        await onLoginRequired();
+                        return;
+                      }
                       if (context.mounted) {
                         ScaffoldMessenger.of(context)
                           ..hideCurrentSnackBar()

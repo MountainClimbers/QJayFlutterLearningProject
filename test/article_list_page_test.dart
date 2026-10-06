@@ -186,6 +186,30 @@ void main() {
     expect(find.byTooltip('取消收藏'), findsOneWidget);
   });
 
+  testWidgets('收藏接口判定会话过期时直接进入登录注册页面', (tester) async {
+    final repository = _SequenceRepository([
+      () async => [firstArticle],
+    ]);
+    await tester.pumpWidget(
+      _testApp(
+        repository,
+        authRepository: _FakeAuthRepository(
+          restoredUser: const LoginUser(id: 7, username: 'MountainClimbers'),
+        ),
+        collectionRepository: _FakeCollectionRepository(
+          collectError: const CollectionAuthenticationException('请先登录'),
+        ),
+        loginPageBuilder: () => const Scaffold(body: Text('登录注册测试页')),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('收藏'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('登录注册测试页'), findsOneWidget);
+  });
+
   testWidgets('恢复登录状态后在首页展示当前用户', (tester) async {
     final repository = _SequenceRepository([
       () async => [firstArticle],
@@ -472,11 +496,15 @@ Widget _testApp(
 }
 
 class _FakeCollectionRepository implements CollectionRepository {
+  _FakeCollectionRepository({this.collectError});
+
+  final Object? collectError;
   int? lastCollectedArticleId;
 
   @override
   Future<void> collect(int articleId) async {
     lastCollectedArticleId = articleId;
+    if (collectError case final Object error) throw error;
   }
 
   @override
@@ -522,6 +550,9 @@ class _FakeAuthRepository implements AuthRepository {
   String? lastUsername;
   String? lastPassword;
   int logoutCallCount = 0;
+
+  @override
+  Future<void> clearSession() async {}
 
   @override
   Future<LoginUser> login({

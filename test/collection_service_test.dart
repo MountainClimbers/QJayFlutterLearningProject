@@ -71,7 +71,7 @@ void main() {
     expect(request.contentType, Headers.formUrlEncodedContentType);
   });
 
-  test('收藏服务把业务错误转换成可读异常', () async {
+  test('收藏服务把未登录错误转换成认证失效异常', () async {
     final dio = _stubDio(
       (_) =>
           _jsonResponse({'errorCode': -1001, 'errorMsg': '请先登录', 'data': null}),
@@ -80,7 +80,7 @@ void main() {
     await expectLater(
       CollectionService(dio: dio).collect(42),
       throwsA(
-        isA<CollectionException>().having(
+        isA<CollectionAuthenticationException>().having(
           (error) => error.message,
           'message',
           '请先登录',

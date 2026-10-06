@@ -17,6 +17,8 @@ abstract interface class AuthRepository {
 
   Future<LoginUser?> restoreSession();
 
+  Future<void> clearSession();
+
   Future<void> logout();
 }
 
@@ -159,6 +161,18 @@ class AuthService implements AuthRepository {
   }
 
   @override
+  Future<void> clearSession() async {
+    try {
+      await _cookieJar.deleteAll();
+    } catch (_, stackTrace) {
+      Error.throwWithStackTrace(
+        const AuthException('本地登录凭证清理失败，请重新登录'),
+        stackTrace,
+      );
+    }
+  }
+
+  @override
   Future<void> logout() async {
     Object? requestError;
     StackTrace? requestStackTrace;
@@ -169,14 +183,7 @@ class AuthService implements AuthRepository {
       requestStackTrace = stackTrace;
     }
 
-    try {
-      await _cookieJar.deleteAll();
-    } catch (_, stackTrace) {
-      Error.throwWithStackTrace(
-        const AuthException('本地登录凭证清理失败，请重新登录'),
-        stackTrace,
-      );
-    }
+    await clearSession();
 
     if (requestError != null) {
       Error.throwWithStackTrace(requestError, requestStackTrace!);

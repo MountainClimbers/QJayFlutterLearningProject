@@ -18,7 +18,12 @@ final collectionControllerProvider =
 
 class CollectionController extends Notifier<CollectionState> {
   final Set<String> _pendingOperations = {};
+  final Map<String, int> _mutationVersions = {};
   bool _needsServerRecordRefresh = false;
+  int _mutationVersion = 0;
+  int _latestCollectionMutationVersion = 0;
+  int _requestGeneration = 0;
+  String? _activeIdentity;
 
   @override
   CollectionState build() {
@@ -26,9 +31,13 @@ class CollectionController extends Notifier<CollectionState> {
       AsyncData(:final value) => value,
       _ => null,
     };
-    if (user == null) return const CollectionState();
+    if (user == null) {
+      _resetForIdentity(null);
+      return const CollectionState();
+    }
 
     final identity = _identityOf(user);
+    if (_activeIdentity != identity) _resetForIdentity(identity);
     Future<void>.microtask(() => _load(identity)).ignore();
     return CollectionState(identity: identity, isLoading: true);
   }
@@ -75,10 +84,16 @@ class CollectionController extends Notifier<CollectionState> {
           : state.articles
                 .where((item) => _key(item, fromCollection: true) != key)
                 .toList(growable: false);
+      final mutationVersion = ++_mutationVersion;
+      _mutationVersions[key] = mutationVersion;
       state = state.copyWith(articles: articles, confirmed: confirmed);
       if (!fromCollection && !wasCollected) {
         _needsServerRecordRefresh = true;
+        _latestCollectionMutationVersion = mutationVersion;
       }
+    } on CollectionAuthenticationException {
+      await _expireSession(identity);
+      rethrow;
     } finally {
       _pendingOperations.remove(operationKey);
       if (state.identity == identity) {
@@ -106,6 +121,8 @@ class CollectionController extends Notifier<CollectionState> {
 
   Future<void> _load(String identity, {bool showLoading = true}) async {
     if (state.identity != identity) return;
+    final requestGeneration = ++_requestGeneration;
+    final mutationVersionAtStart = _mutationVersion;
     if (showLoading && !state.isLoading) {
       state = state.copyWith(isLoading: true, errorMessage: null);
     }
@@ -113,11 +130,17 @@ class CollectionController extends Notifier<CollectionState> {
       final records = await ref
           .read(collectionRepositoryProvider)
           .fetchCollections();
-      if (state.identity != identity) return;
-      final serverConfirmed = <String, bool>{
-        for (final record in records) _key(record, fromCollection: true): true,
+      if (!_isCurrentRequest(identity, requestGeneration)) return;
+      final serverKeys = <String>{
+        for (final record in records) _key(record, fromCollection: true),
       };
-      final confirmed = {...serverConfirmed, ...state.confirmed};
+      final confirmed = <String, bool>{
+        for (final key in {...state.confirmed.keys, ...serverKeys})
+          key: serverKeys.contains(key),
+        for (final entry in state.confirmed.entries)
+          if ((_mutationVersions[entry.key] ?? 0) > mutationVersionAtStart)
+            entry.key: entry.value,
+      };
       final visibleRecords = records
           .where(
             (record) => confirmed[_key(record, fromCollection: true)] != false,
@@ -130,17 +153,49 @@ class CollectionController extends Notifier<CollectionState> {
         isRefreshing: false,
         errorMessage: null,
       );
-      _needsServerRecordRefresh = false;
+      _mutationVersions.removeWhere(
+        (key, version) => version <= mutationVersionAtStart,
+      );
+      _needsServerRecordRefresh =
+          _latestCollectionMutationVersion > mutationVersionAtStart;
+    } on CollectionAuthenticationException {
+      if (!_isCurrentRequest(identity, requestGeneration)) return;
+      await _expireSession(identity);
+      rethrow;
     } catch (error) {
-      if (state.identity == identity) {
+      if (_isCurrentRequest(identity, requestGeneration)) {
         state = state.copyWith(
           isLoading: false,
           isRefreshing: false,
           errorMessage: error.toString(),
         );
+        rethrow;
       }
-      rethrow;
     }
+  }
+
+  bool _isCurrentRequest(String identity, int requestGeneration) {
+    return state.identity == identity &&
+        requestGeneration == _requestGeneration;
+  }
+
+  Future<void> _expireSession(String identity) async {
+    if (state.identity != identity) return;
+    try {
+      await ref.read(authControllerProvider.notifier).expireSession();
+    } catch (_) {
+      // AuthController 即使清理 Cookie 失败，也会把内存登录状态重置为未登录。
+    }
+  }
+
+  void _resetForIdentity(String? identity) {
+    if (_activeIdentity == identity) return;
+    _activeIdentity = identity;
+    _requestGeneration += 1;
+    _mutationVersions.clear();
+    _mutationVersion = 0;
+    _latestCollectionMutationVersion = 0;
+    _needsServerRecordRefresh = false;
   }
 }
 

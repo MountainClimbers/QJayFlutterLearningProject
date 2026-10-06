@@ -218,6 +218,20 @@ void main() {
 
     expect(container.read(authControllerProvider).value, isNull);
   });
+
+  test('会话过期时只清理本地凭证并重置登录状态', () async {
+    const restoredUser = LoginUser(id: 7, username: 'MountainClimbers');
+    final repository = _FakeAuthRepository(restoredUser: restoredUser);
+    final container = _createContainer(repository);
+    addTearDown(container.dispose);
+    await container.read(authControllerProvider.future);
+
+    await container.read(authControllerProvider.notifier).expireSession();
+
+    expect(repository.clearSessionCallCount, 1);
+    expect(repository.logoutCallCount, 0);
+    expect(container.read(authControllerProvider).value, isNull);
+  });
 }
 
 ProviderContainer _createContainer(AuthRepository repository) {
@@ -262,6 +276,13 @@ class _FakeAuthRepository implements AuthRepository {
   int loginCallCount = 0;
   int registerCallCount = 0;
   int logoutCallCount = 0;
+
+  int clearSessionCallCount = 0;
+
+  @override
+  Future<void> clearSession() async {
+    clearSessionCallCount += 1;
+  }
 
   @override
   Future<LoginUser> login({
