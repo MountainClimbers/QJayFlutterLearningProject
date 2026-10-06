@@ -12,8 +12,12 @@
 - 支持失败重试和下拉刷新；
 - 点击文章进入 WebView 详情页；
 - 登录、Cookie 持久化和启动状态恢复；
+- 登录与注册模式切换，注册成功后自动登录；
+- 文章收藏、取消收藏和收藏状态同步；
+- 我的收藏列表、下拉刷新和取消收藏；
+- 首页侧边栏中的“登录/注册”和“我的收藏”入口；
 - 账户面板与退出登录；
-- 页面导航与全局状态共享；
+- 使用 `go_router` 集中管理页面导航；
 - 使用单元测试和 Widget 测试保护主要逻辑。
 
 ## 项目技术栈
@@ -25,10 +29,10 @@
 | 状态管理 | `Riverpod AsyncNotifier` | 管理加载、成功、错误和刷新状态 |
 | 下拉刷新 | `RefreshIndicator` | Flutter 官方 Material 下拉刷新组件 |
 | 登录凭证 | `PersistCookieJar` + `flutter_secure_storage` | 管理 Cookie 并写入系统安全存储 |
-| 页面导航 | `Navigator` + `MaterialPageRoute` | 在列表、详情和登录页面之间传递数据 |
+| 页面导航 | `go_router` | 集中声明命名路由并在页面间传递文章对象 |
 | 页面 UI | `ConsumerWidget` + Material 3 | 监听 Provider 并根据 `AsyncValue` 绘制页面 |
 
-接口地址：`https://www.wanandroid.com/article/list/0/json`
+主要接口包括文章列表、登录、注册、收藏、取消收藏和我的收藏，具体说明见 [收藏、注册与路由学习笔记](docs/collection-registration-routing.md)。
 
 ## 适合初学者的阅读顺序
 
@@ -40,8 +44,10 @@
 6. `lib/features/articles/article_card.dart`：学习 StatelessWidget 和常用布局。
 7. `lib/features/articles/article_list_page.dart`：学习 ConsumerWidget、AsyncValue 和下拉刷新。
 8. `lib/features/auth/auth_controller.dart`：学习登录恢复、登录、退出和并发保护。
-9. `test/app_flow_test.dart`：查看页面导航和全局状态共享的完整测试。
-10. `lib/main.dart`：查看 `ProviderScope`、应用入口和主题。
+9. `lib/features/collections/collection_controller.dart`：学习收藏状态、重复点击保护和账号隔离。
+10. `lib/router/app_router.dart`：学习 `go_router` 命名路由和参数校验。
+11. `test/app_router_test.dart`：查看详情、账号、收藏和侧边栏的路由测试。
+12. `lib/main.dart`：查看 `ProviderScope`、`MaterialApp.router` 和主题。
 
 修改带有 `@Freezed()` 的模型后，重新生成 Freezed 和 JSON 代码：
 

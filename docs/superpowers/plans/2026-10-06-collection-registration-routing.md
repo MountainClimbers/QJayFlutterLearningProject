@@ -333,7 +333,9 @@ Expected: PASS。
 git commit -m "架构：使用统一路由管理页面导航"
 ```
 
-- [ ] **Step 6: 中文提交侧边栏行为**
+- [x] **Step 6: 中文提交侧边栏行为**
+
+侧边栏与集中路由属于同一个可验证功能点，已合并在上一条中文提交中。
 
 ```bash
 git commit -m "功能：首页侧边栏增加账号与收藏入口"
@@ -349,11 +351,11 @@ git commit -m "功能：首页侧边栏增加账号与收藏入口"
 **Interfaces:**
 - Documents: 接口、状态流、go_router、面试口述和运行验证。
 
-- [ ] **Step 1: 更新学习文档**
+- [x] **Step 1: 更新学习文档**
 
 记录普通文章 ID 与收藏记录 ID 的区别、注册后登录原因、共享 Cookie、收藏状态同步、go_router 命名路由与未登录跳转。
 
-- [ ] **Step 2: 运行完整验证**
+- [x] **Step 2: 运行完整验证**
 
 Run: `dart run build_runner build --delete-conflicting-outputs`
 
@@ -367,7 +369,7 @@ Run: `flutter build ios --simulator --no-codesign`
 
 Expected: 代码生成无冲突，格式化完成，测试全部通过，静态检查无问题，生成 `build/ios/iphonesimulator/Runner.app`。
 
-- [ ] **Step 3: 中文提交**
+- [x] **Step 3: 中文提交**
 
 ```bash
 git commit -m "文档：整理收藏注册与路由知识点"
