@@ -179,25 +179,25 @@ git commit -m "功能：实现账号注册并自动登录"
 - Consumes: `AuthController.login` 与 `AuthController.register`。
 - Produces: 登录/注册共用页面，成功时都返回 `LoginUser`。
 
-- [ ] **Step 1: 编写页面失败测试**
+- [x] **Step 1: 编写页面失败测试**
 
 测试“没有账号，去注册”切换后出现确认密码；两次密码不一致不调用注册；有效注册提交三项凭证；“已有账号，去登录”恢复登录模式。
 
-- [ ] **Step 2: 运行测试确认失败**
+- [x] **Step 2: 运行测试确认失败**
 
 Run: `flutter test test/login_page_test.dart`
 Expected: FAIL，页面没有注册模式。
 
-- [ ] **Step 3: 实现注册表单**
+- [x] **Step 3: 实现注册表单**
 
 新增 `RegistrationCredentials` 和 `RegisterSubmitCallback`。注册模式验证确认密码，提交中禁用全部输入与模式切换，异常继续显示服务端消息。
 
-- [ ] **Step 4: 运行测试确认通过**
+- [x] **Step 4: 运行测试确认通过**
 
 Run: `flutter test test/login_page_test.dart`
 Expected: PASS。
 
-- [ ] **Step 5: 中文提交**
+- [x] **Step 5: 中文提交**
 
 ```bash
 git commit -m "功能：登录页面支持账号注册"

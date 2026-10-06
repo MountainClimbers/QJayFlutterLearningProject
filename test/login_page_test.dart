@@ -103,6 +103,83 @@ void main() {
     expect(find.text('请输入密码'), findsNothing);
   });
 
+  testWidgets('没有账号时切换注册模式并可以返回登录模式', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LoginPage()));
+
+    await tester.tap(find.text('没有账号，去注册'));
+    await tester.pump();
+
+    expect(find.text('注册 WanAndroid'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('register-repeat-password-field')),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(FilledButton, '注册并登录'), findsOneWidget);
+
+    await tester.tap(find.text('已有账号，去登录'));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('register-repeat-password-field')),
+      findsNothing,
+    );
+    expect(find.text('登录 WanAndroid'), findsOneWidget);
+  });
+
+  testWidgets('注册时两次密码不一致会阻止请求', (tester) async {
+    RegistrationCredentials? submittedCredentials;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginPage(
+          onRegister: (credentials) {
+            submittedCredentials = credentials;
+            return null;
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('没有账号，去注册'));
+    await tester.pump();
+    await _enterValidCredentials(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('register-repeat-password-field')),
+      '654321',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('login-submit-button')));
+    await tester.pump();
+
+    expect(find.text('两次输入的密码不一致'), findsOneWidget);
+    expect(submittedCredentials, isNull);
+  });
+
+  testWidgets('有效注册表单提交用户名、密码和确认密码', (tester) async {
+    RegistrationCredentials? submittedCredentials;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginPage(
+          onRegister: (credentials) {
+            submittedCredentials = credentials;
+            return null;
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.text('没有账号，去注册'));
+    await tester.pump();
+    await _enterValidCredentials(tester);
+    await tester.enterText(
+      find.byKey(const ValueKey('register-repeat-password-field')),
+      '123456',
+    );
+
+    await tester.tap(find.byKey(const ValueKey('login-submit-button')));
+    await tester.pump();
+
+    expect(submittedCredentials?.username, 'MountainClimbers');
+    expect(submittedCredentials?.password, '123456');
+    expect(submittedCredentials?.repeatedPassword, '123456');
+  });
+
   testWidgets('密码默认隐藏并可以切换显示状态', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LoginPage()));
 

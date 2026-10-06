@@ -14,15 +14,32 @@ class LoginCredentials {
   final String password;
 }
 
+@immutable
+class RegistrationCredentials {
+  const RegistrationCredentials({
+    required this.username,
+    required this.password,
+    required this.repeatedPassword,
+  });
+
+  final String username;
+  final String password;
+  final String repeatedPassword;
+}
+
 typedef LoginSubmitCallback = FutureOr<LoginUser?> Function(
   LoginCredentials credentials,
 );
+typedef RegisterSubmitCallback = FutureOr<LoginUser?> Function(
+  RegistrationCredentials credentials,
+);
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, this.onSubmit});
+  const LoginPage({super.key, this.onSubmit, this.onRegister});
 
   /// 注入登录动作后，页面负责展示加载、成功和错误反馈。
   final LoginSubmitCallback? onSubmit;
+  final RegisterSubmitCallback? onRegister;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -32,22 +49,27 @@ class _LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _repeatPasswordController = TextEditingController();
   final _passwordFocusNode = FocusNode();
+  final _repeatPasswordFocusNode = FocusNode();
   bool _obscurePassword = true;
   bool _isSubmitting = false;
+  bool _isRegisterMode = false;
 
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _repeatPasswordController.dispose();
     _passwordFocusNode.dispose();
+    _repeatPasswordFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('登录')),
+      appBar: AppBar(title: Text(_isRegisterMode ? '注册' : '登录')),
       body: SafeArea(
         child: AutofillGroup(
           child: Form(
@@ -64,14 +86,14 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '登录 WanAndroid',
+                  _isRegisterMode ? '注册 WanAndroid' : '登录 WanAndroid',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.headlineSmall
                       ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '输入玩安卓账号，登录状态会自动保存',
+                  _isRegisterMode ? '创建玩安卓账号，注册成功后会自动登录' : '输入玩安卓账号，登录状态会自动保存',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
@@ -105,7 +127,9 @@ class _LoginPageState extends State<LoginPage> {
                   enableSuggestions: false,
                   enableIMEPersonalizedLearning: false,
                   obscureText: _obscurePassword,
-                  textInputAction: TextInputAction.done,
+                  textInputAction: _isRegisterMode
+                      ? TextInputAction.next
+                      : TextInputAction.done,
                   decoration: InputDecoration(
                     labelText: '密码',
                     hintText: '至少 6 位',
@@ -129,10 +153,33 @@ class _LoginPageState extends State<LoginPage> {
                     border: const OutlineInputBorder(),
                   ),
                   validator: _validatePassword,
-                  onFieldSubmitted: (_) {
-                    if (!_isSubmitting) _submit();
-                  },
+                  onFieldSubmitted: (_) => _isRegisterMode
+                      ? _repeatPasswordFocusNode.requestFocus()
+                      : _submitIfAvailable(),
                 ),
+                if (_isRegisterMode) ...[
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    key: const ValueKey('register-repeat-password-field'),
+                    controller: _repeatPasswordController,
+                    enabled: !_isSubmitting,
+                    focusNode: _repeatPasswordFocusNode,
+                    autofillHints: const [AutofillHints.newPassword],
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    enableIMEPersonalizedLearning: false,
+                    obscureText: true,
+                    textInputAction: TextInputAction.done,
+                    decoration: const InputDecoration(
+                      labelText: '确认密码',
+                      hintText: '再次输入密码',
+                      prefixIcon: Icon(Icons.lock_reset_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: _validateRepeatedPassword,
+                    onFieldSubmitted: (_) => _submitIfAvailable(),
+                  ),
+                ],
                 const SizedBox(height: 24),
                 FilledButton(
                   key: const ValueKey('login-submit-button'),
@@ -145,8 +192,21 @@ class _LoginPageState extends State<LoginPage> {
                             dimension: 20,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text('登录'),
+                        : Text(_isRegisterMode ? '注册并登录' : '登录'),
                   ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  key: const ValueKey('auth-mode-switch'),
+                  onPressed: _isSubmitting
+                      ? null
+                      : () {
+                          setState(() {
+                            _isRegisterMode = !_isRegisterMode;
+                            _repeatPasswordController.clear();
+                          });
+                        },
+                  child: Text(_isRegisterMode ? '已有账号，去登录' : '没有账号，去注册'),
                 ),
               ],
             ),
@@ -167,16 +227,38 @@ class _LoginPageState extends State<LoginPage> {
     return null;
   }
 
+  String? _validateRepeatedPassword(String? value) {
+    if (value == null || value.isEmpty) return '请再次输入密码';
+    if (value != _passwordController.text) return '两次输入的密码不一致';
+    return null;
+  }
+
+  void _submitIfAvailable() {
+    if (!_isSubmitting) _submit();
+  }
+
   Future<void> _submit() async {
     FocusManager.instance.primaryFocus?.unfocus();
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
-    final credentials = LoginCredentials(
-      username: _usernameController.text.trim(),
-      password: _passwordController.text,
-    );
-    final onSubmit = widget.onSubmit;
-    if (onSubmit == null) {
+    final username = _usernameController.text.trim();
+    final password = _passwordController.text;
+    final action = _isRegisterMode
+        ? widget.onRegister == null
+              ? null
+              : () => widget.onRegister!(
+                  RegistrationCredentials(
+                    username: username,
+                    password: password,
+                    repeatedPassword: _repeatPasswordController.text,
+                  ),
+                )
+        : widget.onSubmit == null
+        ? null
+        : () => widget.onSubmit!(
+            LoginCredentials(username: username, password: password),
+          );
+    if (action == null) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('表单校验通过')));
       return;
@@ -184,7 +266,7 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _isSubmitting = true);
     try {
-      final user = await onSubmit(credentials);
+      final user = await action();
       if (!mounted || user == null) return;
       TextInput.finishAutofillContext();
       final navigator = Navigator.of(context);
@@ -197,7 +279,9 @@ class _LoginPageState extends State<LoginPage> {
     } on AuthException catch (error) {
       if (mounted) _showError(error.message);
     } catch (_) {
-      if (mounted) _showError('登录失败，请稍后重试');
+      if (mounted) {
+        _showError(_isRegisterMode ? '注册失败，请稍后重试' : '登录失败，请稍后重试');
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }

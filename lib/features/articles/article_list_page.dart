@@ -86,6 +86,13 @@ class ArticleListPage extends ConsumerWidget {
                 username: credentials.username,
                 password: credentials.password,
               ),
+          onRegister: (credentials) => ref
+              .read(authControllerProvider.notifier)
+              .register(
+                username: credentials.username,
+                password: credentials.password,
+                repeatedPassword: credentials.repeatedPassword,
+              ),
         );
     final user = await Navigator.of(context)
         .push<LoginUser>(MaterialPageRoute(builder: (_) => builder()));
